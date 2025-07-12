@@ -6,6 +6,7 @@ import { Patient } from "../../../domain/entities/patient.entity";
 
 export const registerPatientController = async (req: Request, res: Response): Promise<Response> => {
   const errors = validationResult(req);
+console.log("📥 Incoming request to /register");
 
   if (!errors.isEmpty()) {
     return res.status(400).json({

@@ -6,5 +6,4 @@ export interface IPatientRepository{
     findById(id: string): Promise<Patient | null>; 
     findByMobileNumber(mobile: string): Promise<Patient | null>;
 
-
 }

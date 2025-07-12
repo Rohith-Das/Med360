@@ -8,7 +8,7 @@ import { OTPService } from "../../../infrastructure/auth/otp_service";
 
 @injectable()
 export class PatientRegistrationUC {
-    constructor(@inject('PatientRepository')private patientRepository:IPatientRepository,
+    constructor(@inject('IPatientRepository')private patientRepository:IPatientRepository,
 @inject(EmailService)private emailService:EmailService,
 @inject(OTPService)private otpService:OTPService){}
 
