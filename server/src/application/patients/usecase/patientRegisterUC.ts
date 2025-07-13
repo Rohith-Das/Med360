@@ -20,6 +20,7 @@ async execute(patientData:Patient):Promise<Patient>{
 
     const hashedPassword =await bcrypt.hash(patientData.password!,10);
     const otp=this.otpService.generateOTP()
+    console.log(`your otp : ${otp}`)
     const otpExpiresAt = new Date(Date.now() + Number(process.env.OTP_EXPIRE_TIME || '60') * 1000);
 
         const newPatient: Patient = {

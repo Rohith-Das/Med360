@@ -6,6 +6,7 @@ import { injectable } from 'tsyringe';
 export class EmailService {
   private transporter: Transporter;
 
+
   constructor() {
     this.transporter = nodemailer.createTransport({
       service: process.env.EMAIL_SERVICE,

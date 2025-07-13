@@ -18,7 +18,7 @@ export const startServer = async () => {
 
   const PORT = process.env.PORT || 5001;
 
-  app.use("/api/auth", PatientRouter);
+  app.use("/api/patient", PatientRouter);
   const dbClient = container.resolve(mongoDBClient);
   await dbClient.connect();
 
