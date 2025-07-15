@@ -19,6 +19,7 @@ export class RefreshAccessTokenUC {
       userId: payload.userId,
       email: payload.email,
       name: payload.name,
+      role:payload.role,
     });
   }
 }

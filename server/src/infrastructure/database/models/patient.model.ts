@@ -15,6 +15,8 @@ const PatientSchema:Schema=new Schema(
     isVerified: { type: Boolean, default: false },
     otp: { type: String },
     otpExpiresAt: { type: Date },
+     role: { type: String, enum: ['patient', 'doctor', 'admin'],
+     default: 'patient' },
     },
       { timestamps: true }
 );

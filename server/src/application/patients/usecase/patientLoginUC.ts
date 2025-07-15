@@ -27,7 +27,8 @@ export class patientLoginUC{
         const payload={
             userId:patient.id!,
             email:patient.email,
-            name:patient.name
+            name:patient.name,
+            role:patient.role,
 
         }
         return {
@@ -38,6 +39,7 @@ export class patientLoginUC{
                 name:patient.name,
                 email:patient.email,
                 mobile:patient.mobile,
+                role:patient.role,
             }
         }
     }

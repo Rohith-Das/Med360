@@ -9,4 +9,5 @@ export interface Patient {
     otpExpiresAt?: Date;
     createdAt?: Date;
     updatedAt?: Date;
+     role: 'patient' | 'doctor' | 'admin';
 }

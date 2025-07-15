@@ -31,6 +31,7 @@ async execute(patientData:Patient):Promise<Patient>{
       isVerified: false,
       otp,
       otpExpiresAt,
+      role: 'patient',
     };
     const registeredPatient = await this.patientRepository.create(newPatient);
    await this.emailService.sendEmail(

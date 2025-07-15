@@ -27,6 +27,7 @@ console.log("📥 Incoming request to /register");
       email,
       password,
       isVerified: false,
+      role: 'patient', 
     });
 
     return res.status(201).json({
