@@ -15,8 +15,12 @@ console.log("📥 Incoming request to /register");
       errors: errors.array(),
     });
   }
+console.log("Received register request:", req.body);
 
   const { name, mobile, email, password } = req.body;
+  if (!name || !email || !mobile || !password) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
 
   try {
     const useCase = container.resolve(PatientRegistrationUC);

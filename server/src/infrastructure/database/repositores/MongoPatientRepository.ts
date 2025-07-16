@@ -31,4 +31,13 @@ export class MongoPatientRepository implements IPatientRepository{
         }
         return {id:patient._id.toString(),...patient.toObject()}
     }
+   async update(id: string, updates: Partial<Patient>): Promise<Patient> {
+  const updated = await PatientModel.findByIdAndUpdate(id, updates, { new: true });
+  if (!updated) {
+    throw new Error('Patient not found for update');
+  }
+  return { id: updated._id.toString(), ...updated.toObject() };
+}
+
+
 }

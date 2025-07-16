@@ -17,6 +17,9 @@ const PatientSchema:Schema=new Schema(
     otpExpiresAt: { type: Date },
      role: { type: String, enum: ['patient', 'doctor', 'admin'],
      default: 'patient' },
+     refreshToken: { type: String },
+refreshTokenExpiresAt: { type: Date },
+
     },
       { timestamps: true }
 );

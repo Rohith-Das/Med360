@@ -2,7 +2,7 @@ import React from 'react'
 import { Stethoscope, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
 function FooterFirstPage() {
   return (
-    <footer className="bg-gray-900 text-white">
+    <footer className="bg-[#05523d] text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
