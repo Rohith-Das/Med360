@@ -1,6 +1,6 @@
 
 import { inject,injectable } from "tsyringe";
-import { IPatientRepository } from "../../../domain/repositories/patientRepository_method";
+import { IPatientRepository } from "../../../../domain/repositories/patientRepository_method";
 
 @injectable()
 export class VerifyOtpUC{

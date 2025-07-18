@@ -1,6 +1,6 @@
 import { Request,Response } from "express";
 import { container } from "tsyringe";
-import { IPatientRepository } from "../../../domain/repositories/patientRepository_method";
+import { IPatientRepository } from "../../../../domain/repositories/patientRepository_method";
 
 export const logoutController=async(req:Request,res:Response)=>{
     try {

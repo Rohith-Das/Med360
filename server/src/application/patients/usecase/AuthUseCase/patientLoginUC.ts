@@ -1,7 +1,7 @@
 import { inject, injectable } from "tsyringe";
-import { IPatientRepository } from "../../../domain/repositories/patientRepository_method";
-import { HashService } from "../../service/HashService";
-import { AuthService } from "../../service/AuthService";
+import { IPatientRepository } from "../../../../domain/repositories/patientRepository_method";
+import { HashService } from "../../../service/HashService";
+import { AuthService } from "../../../service/AuthService";
 
 @injectable()
 export class patientLoginUC {

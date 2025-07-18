@@ -1,7 +1,7 @@
 import { inject,injectable } from "tsyringe";
-import { IPatientRepository } from "../../../domain/repositories/patientRepository_method";
-import { OTPService } from "../../../infrastructure/auth/otp_service";
-import { EmailService } from "../../../infrastructure/email/email_service";
+import { IPatientRepository } from "../../../../domain/repositories/patientRepository_method";
+import { OTPService } from "../../../../infrastructure/auth/otp_service";
+import { EmailService } from "../../../../infrastructure/email/email_service";
 
 @injectable()
 export class ResendOtpUC{

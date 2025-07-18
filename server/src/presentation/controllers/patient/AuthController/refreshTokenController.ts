@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { container } from 'tsyringe';
-import { RefreshAccessTokenUC } from '../../../application/patients/usecase/refrshAccessTokenUC';
+import { RefreshAccessTokenUC } from '../../../../application/patients/usecase/AuthUseCase/refrshAccessTokenUC';
 
 export const refreshTokenController = async (req: Request, res: Response): Promise<Response> => {
   try {

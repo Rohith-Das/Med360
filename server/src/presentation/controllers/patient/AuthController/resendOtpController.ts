@@ -1,6 +1,6 @@
 import { Request,Response } from "express";
 import { container } from "tsyringe";
-import { ResendOtpUC } from "../../../application/patients/usecase/ResendOtpUC";
+import { ResendOtpUC } from "../../../../application/patients/usecase/AuthUseCase/ResendOtpUC";
 
 export const resendOtpController = async (req: Request, res: Response): Promise<Response> => {
   const { email } = req.body;

@@ -1,9 +1,9 @@
 import { inject,injectable } from "tsyringe";
-import { IPatientRepository } from "../../../domain/repositories/patientRepository_method";
-import { Patient } from "../../../domain/entities/patient.entity";
+import { IPatientRepository } from "../../../../domain/repositories/patientRepository_method";
+import { Patient } from "../../../../domain/entities/patient.entity";
 import bcrypt from 'bcrypt'
-import { EmailService } from "../../../infrastructure/email/email_service";
-import { OTPService } from "../../../infrastructure/auth/otp_service";
+import { EmailService } from "../../../../infrastructure/email/email_service";
+import { OTPService } from "../../../../infrastructure/auth/otp_service";
 
 
 @injectable()

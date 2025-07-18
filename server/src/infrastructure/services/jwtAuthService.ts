@@ -7,14 +7,20 @@ import { AuthService } from "../../application/service/AuthService";
 export class JwtAuthService implements AuthService{
      private accessSecret: string;
     private refreshSecret: string;
+    //admin
+    private adminAccessSecret: string;
+  private adminRefreshSecret: string;
     
     constructor(){
         this.accessSecret = process.env.JWT_SECRET!;
         this.refreshSecret = process.env.JWT_REFRESH_SECRET!;
-        if (!this.accessSecret || !this.refreshSecret) {
-            throw new Error("JWT_SECRET and JWT_REFRESH_SECRET must be defined");
-        }
+        this.adminAccessSecret = process.env.ADMIN_JWT_SECRET!;
+        this.adminRefreshSecret = process.env.ADMIN_JWT_REFRESH_SECRET!;
+        if (!this.accessSecret || !this.refreshSecret || !this.adminAccessSecret || !this.adminRefreshSecret) {
+      throw new Error("All JWT secrets must be defined");
     }
+    }
+    //patient tokens
      generateAccessToken(payload: TokenPayload): string {
         return sign(payload, this.accessSecret, { expiresIn: "15m" });
     }
@@ -30,6 +36,21 @@ export class JwtAuthService implements AuthService{
     verifyRefreshToken(token: string): TokenPayload {
         return verify(token, this.refreshSecret) as TokenPayload;
     }
+    //admin tokens
+    generateAdminAccessToken(payload:TokenPayload):string{
+        return sign(payload,this.adminAccessSecret,{expiresIn: "15m"})
+    }
+    generateAdminRefreshToken(payload: TokenPayload): string {
+    return sign(payload, this.adminRefreshSecret, { expiresIn: "7d" });
+  }
+
+  verifyAdminAccessToken(token: string): TokenPayload {
+    return verify(token, this.adminAccessSecret) as TokenPayload;
+  }
+
+  verifyAdminRefreshToken(token: string): TokenPayload {
+    return verify(token, this.adminRefreshSecret) as TokenPayload;
+  }
 }
 
 

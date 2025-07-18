@@ -1,6 +1,6 @@
 import { inject, injectable } from 'tsyringe';
-import { AuthService } from '../../service/AuthService';
-import { TokenPayload } from '../../../shared/AuthType';
+import { AuthService } from '../../../service/AuthService';
+import { TokenPayload } from '../../../../shared/AuthType';
 
 @injectable()
 export class RefreshAccessTokenUC {

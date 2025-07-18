@@ -23,6 +23,9 @@ refreshTokenExpiresAt: { type: Date },
     },
       { timestamps: true }
 );
+PatientSchema.index({ email: 1, otp: 1, otpExpiresAt: 1 });
+PatientSchema.index({ otpExpiresAt: 1 }, { expireAfterSeconds: 0 });
+
 export const PatientModel=mongoose.model<PatientDocument>("Patient",PatientSchema)
 
 

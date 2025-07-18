@@ -24,6 +24,14 @@ export const LoginPage = () => {
       <input onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
       <input onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" />
       <button onClick={handleSubmit}>Login</button>
+       <div className="text-center">
+        <button 
+          className="text-blue-500 hover:underline"
+          onClick={() => navigate("/request-password-reset-otp")}
+        >
+          Forgot Password?
+        </button>
+      </div>
     </div>
   );
 };

@@ -6,4 +6,6 @@ export interface IPatientRepository{
     findById(id: string): Promise<Patient | null>; 
     findByMobileNumber(mobile: string): Promise<Patient | null>;
     update(id: string, patientData: Partial<Patient>): Promise<Patient>;
+    requestPasswordRest(email:string,otp:string,otpExpiresAt:Date):Promise<void>;
+    resetPasswordWithOtp(email:string,otp:string,newPassword:string):Promise<Patient>
 }

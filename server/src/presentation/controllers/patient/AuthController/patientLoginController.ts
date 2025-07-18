@@ -1,6 +1,6 @@
 import { Request,Response } from "express";
 import { container } from "tsyringe";
-import { patientLoginUC } from "../../../application/patients/usecase/patientLoginUC";
+import { patientLoginUC } from "../../../../application/patients/usecase/AuthUseCase/patientLoginUC";
 import { success } from "zod";
 
 export const patientLoginController=async(req:Request,res:Response):Promise<Response>=>{

@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import { container } from "tsyringe";
 import { validationResult } from "express-validator";
-import { PatientRegistrationUC } from "../../../application/patients/usecase/patientRegisterUC";
-import { Patient } from "../../../domain/entities/patient.entity";
+import { PatientRegistrationUC } from "../../../../application/patients/usecase/AuthUseCase/patientRegisterUC";
+import { Patient } from "../../../../domain/entities/patient.entity";
 
 export const registerPatientController = async (req: Request, res: Response): Promise<Response> => {
   const errors = validationResult(req);

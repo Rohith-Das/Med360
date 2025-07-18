@@ -7,6 +7,7 @@ import { mongoDBClient } from "./infrastructure/database/mongoDB/mongoDBClient";
 import PatientRouter from "./presentation/routes/patientRoutes";
 import "./infrastructure/config/container";
 import { container } from "tsyringe";
+import AdminRouter from "./presentation/routes/adminRoutes";
 
 export const startServer = async () => {
   dotenv.config();
@@ -25,6 +26,8 @@ export const startServer = async () => {
   const PORT = process.env.PORT || 5001;
 
   app.use("/api/patient", PatientRouter);
+  app.use("/api/admin",AdminRouter)
+
   const dbClient = container.resolve(mongoDBClient);
   await dbClient.connect();
 

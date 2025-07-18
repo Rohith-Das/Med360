@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { container } from "tsyringe";
-import { VerifyOtpUC } from "../../../application/patients/usecase/verifyOtpUC";
+import { VerifyOtpUC } from "../../../../application/patients/usecase/AuthUseCase/verifyOtpUC";
 
 export const verifyOtpController = async (req: Request, res: Response): Promise<Response> => {
   const { email, otp } = req.body;

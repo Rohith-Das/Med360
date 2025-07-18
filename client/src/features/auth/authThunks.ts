@@ -27,3 +27,23 @@ export const registerUser =createAsyncThunk(
         return res.data.data
       } 
 )
+export const requestPasswordResetOtp=createAsyncThunk(
+  "auth/requestPasswordResetOtp",
+  async (email:string)=>{
+    const res=await axiosInstance.post("/patient/request-password-reset-otp",
+      {email,}
+    )
+    return res.data
+  }
+)
+export const resetPasswordWithOtp = createAsyncThunk(
+  "auth/resetPasswordWithOtp",
+  async ({ email, otp, newPassword }: { email: string; otp: string; newPassword: string }) => {
+    const res = await axiosInstance.post("/patient/reset-password-with-otp", {
+      email,
+      otp,
+      newPassword,
+    });
+    return res.data;
+  }
+);
