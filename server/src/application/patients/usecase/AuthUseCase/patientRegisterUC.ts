@@ -21,8 +21,8 @@ async execute(patientData:Patient):Promise<Patient>{
     const hashedPassword =await bcrypt.hash(patientData.password!,10);
     const otp=this.otpService.generateOTP()
     console.log(`your otp : ${otp}`)
-    const otpExpiresAt = new Date(Date.now() + Number(process.env.OTP_EXPIRE_TIME || '60') * 1000);
-
+const otpExpirationMinutes = Number(process.env.OTP_EXPIRE_TIME || '600'); 
+        const otpExpiresAt = new Date(Date.now() + otpExpirationMinutes * 1000);
         const newPatient: Patient = {
       name: patientData.name,
       mobile: patientData.mobile,
@@ -34,11 +34,13 @@ async execute(patientData:Patient):Promise<Patient>{
       role: 'patient',
     };
     const registeredPatient = await this.patientRepository.create(newPatient);
-   await this.emailService.sendEmail(
-      registeredPatient.email,
-      'Verify Your Account',
-      `<p>Your OTP for email verification is: <strong>${otp}</strong>. It will expire in ${process.env.OTP_EXPIRE_TIME || '60'} seconds.</p>`
-    );
+     const expirationMinutes = Math.floor(otpExpirationMinutes / 60);
+        await this.emailService.sendEmail(
+            registeredPatient.email,
+            'Verify Your Account',
+            `<p>Your OTP for email verification is: <strong>${otp}</strong>. It will expire in ${expirationMinutes} minutes.</p>`
+        );
+   
 
     return registeredPatient;
 }
