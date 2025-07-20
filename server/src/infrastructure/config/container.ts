@@ -14,9 +14,17 @@ import { AdminRegisterUC } from "../../application/admin/usecase/adminRegisterUC
 import { AdminLoginUC } from "../../application/admin/usecase/adminLoginUC";
 import { IAdminRepository } from "../../domain/repositories/adminRepository-method";
 import { MongoAdminRepository } from "../database/repositores/MongoAdminRepository";
+import { AdminRefreshTokenUC } from "../../application/admin/usecase/adminRefreshTokenUC";
 
 import { RequestPasswordResetOtpUC } from "../../application/patients/usecase/forgotPasswordUC/RequestPasswordResetOtpUC ";
 import { ResetPasswordWithOtpUC } from "../../application/patients/usecase/forgotPasswordUC/ResetPasswordWithOtpUC ";
+
+//admin patient management usecase
+import { GetAllPtientsUC } from "../../application/admin/usecase/getAllPatientsUC";
+import { blockPatientUC } from "../../application/admin/usecase/blockPatientUC";
+import { unblockPatientUC } from "../../application/admin/usecase/unblockPatientUC";
+import { SoftDeletePatientUC } from "../../application/admin/usecase/SoftDeletePatientUC ";
+import { getPatientStats } from "../../application/admin/usecase/getPatientStatsUC";
 
 // Database
 container.registerSingleton(mongoDBClient);
@@ -33,7 +41,19 @@ container.register<HashService>("HashService", { useClass: BcryptHashService });
 
 // Use Cases
 container.registerSingleton(PatientRegistrationUC);
-container.registerSingleton(AdminRegisterUC);
-container.registerSingleton(AdminLoginUC);
 container.registerSingleton(RequestPasswordResetOtpUC);
 container.registerSingleton(ResetPasswordWithOtpUC);
+
+//admin use cases
+container.registerSingleton(AdminRegisterUC);
+container.registerSingleton(AdminLoginUC);
+container.registerSingleton(AdminRefreshTokenUC)
+
+//admin patient management usecases
+container.registerSingleton(GetAllPtientsUC);
+container.registerSingleton(blockPatientUC)
+container.registerSingleton(unblockPatientUC);
+container.registerSingleton(SoftDeletePatientUC);
+container.registerSingleton(getPatientStats)
+
+export {container}

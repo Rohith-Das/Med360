@@ -3,7 +3,12 @@ import { adminLoginController } from '../controllers/adminController.ts/adminLog
 import { adminRegisterController } from '../controllers/adminController.ts/adminRegisterController'
 import { adminRefreshTokenController } from '../controllers/adminController.ts/adminRefreshTokenController'
 import { adminAuthGuard } from '../middlewares/authAdminMiddleware'
-
+import { blockPatientController,
+  getAllPatientsController,
+  getPatientStatsController,
+  softDeletedPatientController,
+  unblockPatientController
+ } from '../controllers/adminController.ts/patientManageMentController'
 const AdminRouter=express.Router()
 
 AdminRouter.post("/register",adminRegisterController);
@@ -18,5 +23,12 @@ AdminRouter.get('/profile', adminAuthGuard, (req, res) => {
     user: (req as any).user,
   });
 });
+
+//patient mgt routes
+AdminRouter.get('/patients',adminAuthGuard,getAllPatientsController)
+AdminRouter.get("/patients/stats",adminAuthGuard,getPatientStatsController);
+AdminRouter.put("/patients/:patientId/block",adminAuthGuard,blockPatientController);
+AdminRouter.put("/patients/patientId/unblock",adminAuthGuard,unblockPatientController);
+AdminRouter.delete("/patients/:patientId",adminAuthGuard,softDeletedPatientController)
 
 export default AdminRouter;

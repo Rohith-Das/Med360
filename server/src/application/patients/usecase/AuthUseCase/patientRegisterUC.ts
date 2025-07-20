@@ -32,6 +32,8 @@ const otpExpirationMinutes = Number(process.env.OTP_EXPIRE_TIME || '600');
       otp,
       otpExpiresAt,
       role: 'patient',
+      isBlocked: false,
+  isDeleted: false,
     };
     const registeredPatient = await this.patientRepository.create(newPatient);
      const expirationMinutes = Math.floor(otpExpirationMinutes / 60);

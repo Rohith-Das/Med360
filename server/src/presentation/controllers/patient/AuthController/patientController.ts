@@ -32,6 +32,8 @@ console.log("Received register request:", req.body);
       password,
       isVerified: false,
       role: 'patient', 
+       isBlocked: false,
+  isDeleted: false,
     });
 
     return res.status(201).json({

@@ -10,7 +10,7 @@ import { AdminDashboardPage } from "./pages/adminPages/AdminDashboardPage";
 import { RequestPasswordResetPage } from "./pages/patientPages/forgotPasswordPages/RequestPasswordResetPage ";
 import { ResetPasswordPage } from "./pages/patientPages/forgotPasswordPages/ResetPasswordPage ";
 import Home from "./pages/patientPages/Home";
-
+import ListPatients from "./pages/adminPages/ListPatients";
 
 function App() {
   return (
@@ -21,7 +21,7 @@ function App() {
         path="/home"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <Home />
           </ProtectedRoute>
         }
       />
@@ -31,7 +31,7 @@ function App() {
       <Route path="/admin/home" element={<Home />} />
       <Route path="/request-password-reset-otp" element={<RequestPasswordResetPage />} />
         <Route path="/reset-password-with-otp" element={<ResetPasswordPage />} />
-
+ <Route path="/admin/patients" element={<ListPatients />} />
     </Routes>
   );
 }

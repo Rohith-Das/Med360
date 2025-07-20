@@ -2,6 +2,7 @@ import { injectable } from "tsyringe";
 import { IPatientRepository } from "../../../domain/repositories/patientRepository_method";
 import { Patient } from "../../../domain/entities/patient.entity";
 import { PatientModel } from "../models/patient.model";
+import { createDeflate } from "zlib";
 
 @injectable()
 export class MongoPatientRepository implements IPatientRepository {
@@ -71,5 +72,101 @@ export class MongoPatientRepository implements IPatientRepository {
          throw new Error("Invalid OTP or OTP has expired");
       }
      return { id: patient._id.toString(), ...patient.toObject() };
+  }
+  async findAll(page: number, limit: number, filters?: { isBlocked?: boolean; isDeleted?: boolean; searchTerm?: string; }): Promise<{ patients: Patient[]; total: number; totalPages: number; currentPage: number; }> {
+    const query:any={};
+    if(filters?.isBlocked !== undefined){
+      query.isBlocked=filters.isBlocked;
+    }
+    if(filters?.isDeleted !== undefined){
+      query.isDeleted=filters.isDeleted;
+    }else{
+      query.isDeleted={$ne:true};
+    }
+    if(filters?.searchTerm){
+      query.$or=[
+        {name:{$regex:filters.searchTerm,$options:'i'}},
+        {email:{$regex:filters.searchTerm,$options:'i'}},
+        {mobile:{$regex:filters.searchTerm,$options:'i'}}
+      ]
+    }
+
+    const skip=(page-1)*limit;
+    const[patients,total]=await Promise.all([
+      PatientModel.find(query)
+      .select('-password -otp -refreshToken')
+      .sort({createdAt:-1})
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+      PatientModel.countDocuments(query)
+    ])
+
+    return {
+      patients:patients.map(patient =>({
+        id:patient._id.toString(),
+        ...patient
+      }))as Patient[],total,totalPages:Math.ceil(total/limit),
+      currentPage:page
+    };
+  }
+  async blockPatient(id: string): Promise<Patient> {
+    const updated=await PatientModel.findByIdAndUpdate(
+      id,
+      {isBlocked:true},
+      {new:true}
+    );
+    if(!updated){
+      throw new Error("patient not found")
+    }
+    return {
+      id:updated._id.toString(),
+      ...updated.toObject()
+    }
+  }
+
+  async unblockPatient(id: string): Promise<Patient> {
+    const updated=await PatientModel.findByIdAndUpdate(
+      id,
+      {isBlocked:false},
+      {new:true}
+    );
+    if(!updated){
+      throw new Error("patient not found")
+    }
+    return {
+      id:updated._id.toString(),
+      ...updated.toObject()
+    }
+  }
+
+  async softDeletedPatient(id: string): Promise<Patient> {
+    const updated=await PatientModel.findByIdAndUpdate(
+      id,
+      {isDeleted:true},{new:true}
+    );
+    if(!updated){
+      throw new Error("patient not found in delete patient")
+    }
+
+    return {
+      id:updated._id.toString(),
+      ...updated.toObject()
+    }
+  }
+
+   async getPatientStats(): Promise<{ totalPatients: number; activedPatient: number; blockedPatient: number; deletedPatient: number; }> {
+    const [totalPatients,activedPatient,blockedPatient,deletedPatient]=await Promise.all([
+      PatientModel.countDocuments({isDeleted:{$ne:true}}),
+      PatientModel.countDocuments({isBlocked:false,isDeleted:{$ne:true}}),
+      PatientModel.countDocuments({isBlocked:true,isDeleted:{$ne:true}}),
+      PatientModel.countDocuments({isDeleted:true})
+    ])
+    return {
+      totalPatients,
+      activedPatient,
+      blockedPatient,
+      deletedPatient
+    }
   }
 }
