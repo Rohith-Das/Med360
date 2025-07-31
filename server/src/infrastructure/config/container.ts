@@ -10,21 +10,34 @@ import { JwtAuthService } from "../services/jwtAuthService";
 import { HashService } from "../../application/service/HashService";
 import { AuthService } from "../../application/service/AuthService";
 
-import { AdminRegisterUC } from "../../application/admin/usecase/adminRegisterUC";
-import { AdminLoginUC } from "../../application/admin/usecase/adminLoginUC";
+import { AdminRegisterUC } from "../../application/admin/usecase/AuthUC/adminRegisterUC";
+import { AdminLoginUC } from "../../application/admin/usecase/AuthUC/adminLoginUC";
 import { IAdminRepository } from "../../domain/repositories/adminRepository-method";
 import { MongoAdminRepository } from "../database/repositores/MongoAdminRepository";
-import { AdminRefreshTokenUC } from "../../application/admin/usecase/adminRefreshTokenUC";
+import { AdminRefreshTokenUC } from "../../application/admin/usecase/AuthUC/adminRefreshTokenUC";
 
 import { RequestPasswordResetOtpUC } from "../../application/patients/usecase/forgotPasswordUC/RequestPasswordResetOtpUC ";
 import { ResetPasswordWithOtpUC } from "../../application/patients/usecase/forgotPasswordUC/ResetPasswordWithOtpUC ";
 
 //admin patient management usecase
-import { GetAllPtientsUC } from "../../application/admin/usecase/getAllPatientsUC";
-import { blockPatientUC } from "../../application/admin/usecase/blockPatientUC";
-import { unblockPatientUC } from "../../application/admin/usecase/unblockPatientUC";
-import { SoftDeletePatientUC } from "../../application/admin/usecase/SoftDeletePatientUC ";
-import { getPatientStats } from "../../application/admin/usecase/getPatientStatsUC";
+import { GetAllPtientsUC } from "../../application/admin/usecase/patientMGT-UC.ts/getAllPatientsUC";
+import { blockPatientUC } from "../../application/admin/usecase/patientMGT-UC.ts/blockPatientUC";
+import { unblockPatientUC } from "../../application/admin/usecase/patientMGT-UC.ts/unblockPatientUC";
+import { SoftDeletePatientUC } from "../../application/admin/usecase/patientMGT-UC.ts/SoftDeletePatientUC ";
+import { getPatientStats } from "../../application/admin/usecase/patientMGT-UC.ts/getPatientStatsUC";
+import { PatientProfileUseCase } from "../../application/patients/usecase/profile/profileUseCase";
+import { ISpecializationRepository } from "../../domain/repositories/specializationRepository-method";
+import { MongoSpecializationRepository } from "../database/repositores/MongoSpecializationRepository";
+import {  CreateSpecializationUC } from "../../application/admin/usecase/specialization/createSpecializationUC";
+import { updateSpecializationUC } from "../../application/admin/usecase/specialization/updateSpecializationUC";
+import { getSpecializationsUC } from "../../application/admin/usecase/specialization/getSpecializationsUC";
+import { DeleteSpecializationUC } from "../../application/admin/usecase/specialization/deleteSpecializationUC";
+import { CloudinaryService } from "../services/CloudinaryService";
+
+
+
+
+
 
 // Database
 container.registerSingleton(mongoDBClient);
@@ -32,10 +45,11 @@ container.registerSingleton(mongoDBClient);
 // Repositories
 container.register<IPatientRepository>('IPatientRepository', MongoPatientRepository); // Only once
 container.register<IAdminRepository>("IAdminRepository", MongoAdminRepository);
-
+container.register<ISpecializationRepository>("ISpecializationRepository",MongoSpecializationRepository);
 // Services
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
+
 container.register<AuthService>("AuthService", { useClass: JwtAuthService });
 container.register<HashService>("HashService", { useClass: BcryptHashService });
 
@@ -43,7 +57,6 @@ container.register<HashService>("HashService", { useClass: BcryptHashService });
 container.registerSingleton(PatientRegistrationUC);
 container.registerSingleton(RequestPasswordResetOtpUC);
 container.registerSingleton(ResetPasswordWithOtpUC);
-
 //admin use cases
 container.registerSingleton(AdminRegisterUC);
 container.registerSingleton(AdminLoginUC);
@@ -55,5 +68,12 @@ container.registerSingleton(blockPatientUC)
 container.registerSingleton(unblockPatientUC);
 container.registerSingleton(SoftDeletePatientUC);
 container.registerSingleton(getPatientStats)
+container.registerSingleton(PatientProfileUseCase)
 
+//specialization usecase
+container.registerSingleton("CloudinaryService", CloudinaryService);
+container.registerSingleton(CreateSpecializationUC)
+container.registerSingleton(updateSpecializationUC)
+container.registerSingleton(getSpecializationsUC)
+container.registerSingleton(DeleteSpecializationUC)
 export {container}

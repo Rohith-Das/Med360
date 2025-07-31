@@ -9,6 +9,11 @@ import { blockPatientController,
   softDeletedPatientController,
   unblockPatientController
  } from '../controllers/adminController.ts/patientManageMentController'
+
+ import { createSpecialization,updateSpecialization,deleteSpecialization, getSpecializations } from '../controllers/adminController.ts/specializationController'
+import { upload } from '../../infrastructure/config/multerConfig'
+
+
 const AdminRouter=express.Router()
 
 AdminRouter.post("/register",adminRegisterController);
@@ -28,7 +33,12 @@ AdminRouter.get('/profile', adminAuthGuard, (req, res) => {
 AdminRouter.get('/patients',adminAuthGuard,getAllPatientsController)
 AdminRouter.get("/patients/stats",adminAuthGuard,getPatientStatsController);
 AdminRouter.put("/patients/:patientId/block",adminAuthGuard,blockPatientController);
-AdminRouter.put("/patients/patientId/unblock",adminAuthGuard,unblockPatientController);
+AdminRouter.put("/patients/:patientId/unblock",adminAuthGuard,unblockPatientController);
 AdminRouter.delete("/patients/:patientId",adminAuthGuard,softDeletedPatientController)
 
+//specialization routes
+AdminRouter.post("/specializations", adminAuthGuard, upload.single('image'), createSpecialization);
+AdminRouter.put("/specializations/:id", adminAuthGuard, upload.single('image'), updateSpecialization);
+AdminRouter.get("/specializations", adminAuthGuard, getSpecializations);
+AdminRouter.delete("/specializations/:id", adminAuthGuard, deleteSpecialization);
 export default AdminRouter;

@@ -3,6 +3,9 @@ import styles from '../../App.module.scss'
 import Navbar from '../../components/patient/Navbar'
 import SideBar from '../../components/patient/SideBar'
 import HomeBanner from '../../components/patient/HomeBanner'
+import SpecializationCard from '@/components/patient/specializations/SpecializationCard'
+
+
 function Home() {
   return (
  <>
@@ -15,6 +18,7 @@ function Home() {
   </div> */}
   <div>
     <HomeBanner/>
+    <SpecializationCard/>
   </div>
 </div>
 

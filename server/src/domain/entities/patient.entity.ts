@@ -14,6 +14,8 @@ export interface Patient {
   createdAt?: Date;
     gender?: 'male' | 'female';
   dateOfBirth?: string;
+  address?: string;
+   profilePicture?: string;
   updatedAt?: Date;
   role: 'patient' | 'doctor' | 'admin';
 }

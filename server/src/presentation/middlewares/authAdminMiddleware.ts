@@ -6,6 +6,7 @@ import { AuthRequest } from "./AuthRequest";
 export const adminAuthGuard = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
+    console.log('admin guard token',token)
     if (!token) {
       return res.status(401).json({ success: false, message: 'Unauthorized admin access' });
     }

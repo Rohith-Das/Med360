@@ -1,7 +1,7 @@
 import { inject,injectable } from "tsyringe";
-import { IAdminRepository } from "../../../domain/repositories/adminRepository-method";
-import { HashService } from "../../service/HashService";
-import { AuthService } from "../../service/AuthService";
+import { IAdminRepository } from "../../../../domain/repositories/adminRepository-method";
+import { HashService } from "../../../service/HashService";
+import { AuthService } from "../../../service/AuthService";
 
 @injectable()
 export class AdminLoginUC{

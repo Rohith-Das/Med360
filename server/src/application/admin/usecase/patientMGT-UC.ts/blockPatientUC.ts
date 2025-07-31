@@ -1,5 +1,5 @@
 import { injectable,inject } from "tsyringe";
-import { IPatientRepository } from "../../../domain/repositories/patientRepository_method";
+import { IPatientRepository } from "../../../../domain/repositories/patientRepository_method";
 
 @injectable()
 

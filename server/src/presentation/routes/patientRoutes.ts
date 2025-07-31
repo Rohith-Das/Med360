@@ -6,11 +6,12 @@ import { resendOtpController } from '../controllers/patient/AuthController/resen
 import { patientLoginController } from '../controllers/patient/AuthController/patientLoginController'
 import { refreshTokenController } from '../controllers/patient/AuthController/refreshTokenController'
 import { logoutController } from '../controllers/patient/AuthController/logoutController'
-import { authGuard } from '../middlewares/AuthMiddleware'
 import { resetPasswordWithOtpController } from '../controllers/patient/forgotPassword/resetPasswordWithOtpController '
 import { requestPasswordResetOtpController } from '../controllers/patient/forgotPassword/requestPasswordResetOtpController '
-
-
+import { authGuard } from '../middlewares/AuthMiddleware'
+import { getProfileController,updateProfileController } from '../controllers/patient/Profile/profileController'
+import { upload } from '../../infrastructure/config/multerConfig'
+import { uploadProfilePicture,removeProfilePicture } from '../controllers/patient/Profile/profileController'
 
 
 const PatientRouter=express.Router()
@@ -25,12 +26,9 @@ PatientRouter.post('/refresh-token',refreshTokenController)
 PatientRouter.post('/logout',logoutController)
 PatientRouter.post('/request-password-reset-otp', requestPasswordResetOtpController);
 PatientRouter.post('/reset-password-with-otp', resetPasswordWithOtpController);
-PatientRouter.get('/profile', authGuard, (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Welcome patient",
-    user: (req as any).user,
-  });
-});
+PatientRouter.get("/profile", authGuard, getProfileController);
+PatientRouter.put("/profile", authGuard, updateProfileController);
+PatientRouter.post("/profile/picture", upload.single('profilePicture'),authGuard, uploadProfilePicture);
+PatientRouter.delete("/profile/picture", authGuard,removeProfilePicture);
 
 export default PatientRouter;

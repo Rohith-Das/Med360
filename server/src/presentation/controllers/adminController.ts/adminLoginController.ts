@@ -1,6 +1,6 @@
 import { Request,Response } from "express";
 import { container } from "tsyringe";
-import { AdminLoginUC } from "../../../application/admin/usecase/adminLoginUC";
+import { AdminLoginUC } from "../../../application/admin/usecase/AuthUC/adminLoginUC";
 
 export const adminLoginController=async(req:Request,res:Response):Promise<Response> =>{
     const {email,password}=req.body;

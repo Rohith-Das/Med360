@@ -11,13 +11,25 @@ import { RequestPasswordResetPage } from "./pages/patientPages/forgotPasswordPag
 import { ResetPasswordPage } from "./pages/patientPages/forgotPasswordPages/ResetPasswordPage ";
 import Home from "./pages/patientPages/Home";
 import ListPatients from "./pages/adminPages/ListPatients";
+import { GuestRoute } from "./components/patient/GuestRoutes";
+import ProfilePage from "./pages/patientPages/PatientProfile";
+import SpecializationList from "./pages/adminPages/SpecializationList";
+import SpecializationForm from "./pages/adminPages/SpecializationForm";
+
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<FirstPage />} />
-      <Route path="/login" element={<LoginPage/>}/>
-       <Route
+      <Route
+        path="/login"
+        element={
+          <GuestRoute>
+            <LoginPage />
+          </GuestRoute>
+        }
+      />
+      <Route
         path="/home"
         element={
           <ProtectedRoute>
@@ -25,13 +37,36 @@ function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/register" element={<RegisterPage />} />
-        <Route path="/verify-otp" element={<VerifyOtpPage />} />
-        <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route
+        path="/register"
+        element={
+          <GuestRoute>
+            <RegisterPage />
+          </GuestRoute>
+        }
+      />
+            <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+ 
+      <Route path="/verify-otp" element={<VerifyOtpPage />} />
+      <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route path="/admin/home" element={<Home />} />
-      <Route path="/request-password-reset-otp" element={<RequestPasswordResetPage />} />
-        <Route path="/reset-password-with-otp" element={<ResetPasswordPage />} />
- <Route path="/admin/patients" element={<ListPatients />} />
+      <Route
+        path="/request-password-reset-otp"
+        element={<RequestPasswordResetPage />}
+      />
+      <Route path="/reset-password-with-otp" element={<ResetPasswordPage />} />
+      <Route path="/admin/patients" element={<ListPatients />} />
+
+      <Route path="/admin/specializations" element={<SpecializationList />} />
+<Route path="/admin/specializations/create" element={<SpecializationForm />} />
+<Route path="/admin/specializations/edit/:id" element={<SpecializationForm />} />
     </Routes>
   );
 }

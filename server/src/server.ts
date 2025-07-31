@@ -8,7 +8,7 @@ import PatientRouter from "./presentation/routes/patientRoutes";
 import "./infrastructure/config/container";
 import { container } from "tsyringe";
 import AdminRouter from "./presentation/routes/adminRoutes";
-
+import path=require('path')
 export const startServer = async () => {
   dotenv.config();
 
@@ -23,13 +23,21 @@ export const startServer = async () => {
   app.use(express.json());
   app.use(cookieParser());
 
-  const PORT = process.env.PORT || 5001;
 
+  app.use((req, res, next) => {
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
+  next();
+});
+  const PORT = process.env.PORT || 5001;
+  
   app.use("/api/patient", PatientRouter);
   app.use("/api/admin",AdminRouter)
 
   const dbClient = container.resolve(mongoDBClient);
   await dbClient.connect();
+app.use(express.static(path.join(__dirname, '../../client/build')));
+
 
   app.all("*", (req, res) => {
     res.status(404).json({ success: false, message: "Route not found" });

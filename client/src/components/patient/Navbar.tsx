@@ -6,9 +6,11 @@ import { Stethoscope } from 'lucide-react';
 import { useSelector, UseSelector } from 'react-redux';
 import { RootState } from '../../app/store';
 import { Root } from 'react-dom/client';
+import { useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
-  const user=useSelector((state:RootState)=>state.auth.user)
+  const navigate=useNavigate()
+  const patient=useSelector((state:RootState)=>state.auth.patient)
   const [isMobile, setIsMobile] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -59,15 +61,32 @@ const Navbar = () => {
               <FaBell />
               <span className="notification-badge">3</span>
             </button>
-           {user ? (
-  <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full">
-    {user.name}
-  </button>
-) : (
-  <button className="icon-button profile">
-    <FaUserCircle />
-  </button>
-)}
+            {patient ? (
+              <button 
+                className="flex items-center justify-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full"
+                onClick={() => navigate('/profile')}
+              >
+                {patient.profilePicture ? (
+                  <img 
+                    src={patient.profilePicture} 
+                    alt="Profile" 
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white">
+                    {patient.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span className="ml-2 hidden md:inline-block">{patient.name}</span>
+              </button>
+            ) : (
+              <button 
+                className="icon-button profile"
+                onClick={() => navigate('/login')}
+              >
+                <FaUserCircle />
+              </button>
+            )}
 
           </div>
         </div>

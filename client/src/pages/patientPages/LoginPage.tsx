@@ -164,7 +164,10 @@ export const LoginPage = () => {
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-600">{errors.password}</p>
                 )}
+ 
+
               </div>
+              
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center">

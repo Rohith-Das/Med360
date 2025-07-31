@@ -1,11 +1,11 @@
 import { Request,Response } from "express";
 import { container } from "tsyringe";
-import { GetAllPtientsUC } from "../../../application/admin/usecase/getAllPatientsUC";
-import { blockPatientUC } from "../../../application/admin/usecase/blockPatientUC";
-import { unblockPatientUC } from "../../../application/admin/usecase/unblockPatientUC";
-import { SoftDeletePatientUC } from "../../../application/admin/usecase/SoftDeletePatientUC ";
+import { GetAllPtientsUC } from "../../../application/admin/usecase/patientMGT-UC.ts/getAllPatientsUC";
+import { blockPatientUC } from "../../../application/admin/usecase/patientMGT-UC.ts/blockPatientUC";
+import { unblockPatientUC } from "../../../application/admin/usecase/patientMGT-UC.ts/unblockPatientUC";
+import { SoftDeletePatientUC } from "../../../application/admin/usecase/patientMGT-UC.ts/SoftDeletePatientUC ";
 import { success } from "zod";
-import { getPatientStats } from "../../../application/admin/usecase/getPatientStatsUC";
+import { getPatientStats } from "../../../application/admin/usecase/patientMGT-UC.ts/getPatientStatsUC";
 
 export const getAllPatientsController =async(req:Request,res:Response):Promise<Response>=>{
 

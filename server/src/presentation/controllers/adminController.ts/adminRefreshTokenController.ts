@@ -1,6 +1,6 @@
 import { Request,Response } from "express";
 import { container } from "tsyringe";
-import { AdminRefreshTokenUC } from "../../../application/admin/usecase/adminRefreshTokenUC";
+import { AdminRefreshTokenUC } from "../../../application/admin/usecase/AuthUC/adminRefreshTokenUC";
 
 
 export const adminRefreshTokenController = async (req: Request, res: Response): Promise<Response> => {

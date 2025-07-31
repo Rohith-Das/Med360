@@ -57,4 +57,4 @@ export const adminApi={
         const response=await adminAxiosInstance.delete(`/admin/patients/${patientId}`)
         return response.data;
     }
-}
+} 

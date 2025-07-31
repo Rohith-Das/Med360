@@ -4,14 +4,19 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import { Provider } from 'react-redux';
-import { store } from './app/store';
-
+import { persistor, store } from './app/store';
+import { PersistGate } from "redux-persist/integration/react";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Provider store={store}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <PersistGate loading={null} persistor={persistor}>
+<GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </GoogleOAuthProvider>
+      </PersistGate>
     </Provider>
   </React.StrictMode>
 );

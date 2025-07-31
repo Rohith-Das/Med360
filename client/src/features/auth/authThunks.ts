@@ -1,5 +1,7 @@
 import { createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
+import { Patient } from "./authSlice";
+import { RootState } from "@/app/store";
 
 const axiosInstance = axios.create({
   baseURL: "http://localhost:5001/api/",
