@@ -9,6 +9,9 @@ import "./infrastructure/config/container";
 import { container } from "tsyringe";
 import AdminRouter from "./presentation/routes/adminRoutes";
 import path=require('path')
+import AppRouter from "./presentation/routes/ApplicationRoutes";
+
+
 export const startServer = async () => {
   dotenv.config();
 
@@ -33,6 +36,7 @@ export const startServer = async () => {
   
   app.use("/api/patient", PatientRouter);
   app.use("/api/admin",AdminRouter)
+  app.use("/api/application", AppRouter); 
 
   const dbClient = container.resolve(mongoDBClient);
   await dbClient.connect();

@@ -34,6 +34,11 @@ import { getSpecializationsUC } from "../../application/admin/usecase/specializa
 import { DeleteSpecializationUC } from "../../application/admin/usecase/specialization/deleteSpecializationUC";
 import { CloudinaryService } from "../services/CloudinaryService";
 
+import { IApplicantRepository } from "../../domain/repositories/applicantRepository-method";
+import { MongoApplicantRepository } from "../database/repositores/MongoApplicantRepository";
+import { SubmitApplicationUC } from "../../application/ApplicantUC/SubmitApplicationUC";
+import { ListApplicationUC } from "../../application/ApplicantUC/ListApplicationUC";
+import { GetApplicationByIdUC } from "../../application/ApplicantUC/GetApplicationBtIdUC";
 
 
 
@@ -46,6 +51,7 @@ container.registerSingleton(mongoDBClient);
 container.register<IPatientRepository>('IPatientRepository', MongoPatientRepository); // Only once
 container.register<IAdminRepository>("IAdminRepository", MongoAdminRepository);
 container.register<ISpecializationRepository>("ISpecializationRepository",MongoSpecializationRepository);
+container.register<IApplicantRepository>("IApplicantRepository",MongoApplicantRepository)
 // Services
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
@@ -76,4 +82,9 @@ container.registerSingleton(CreateSpecializationUC)
 container.registerSingleton(updateSpecializationUC)
 container.registerSingleton(getSpecializationsUC)
 container.registerSingleton(DeleteSpecializationUC)
+
+//Applicant usecase
+container.registerSingleton(SubmitApplicationUC)
+container.registerSingleton(ListApplicationUC)
+container.registerSingleton(GetApplicationByIdUC)
 export {container}

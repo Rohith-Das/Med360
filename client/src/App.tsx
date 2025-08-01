@@ -15,6 +15,7 @@ import { GuestRoute } from "./components/patient/GuestRoutes";
 import ProfilePage from "./pages/patientPages/PatientProfile";
 import SpecializationList from "./pages/adminPages/SpecializationList";
 import SpecializationForm from "./pages/adminPages/SpecializationForm";
+import DoctorApplicationPage from "./pages/Applications/DoctorApplicationPage";
 
 
 function App() {
@@ -67,6 +68,7 @@ function App() {
       <Route path="/admin/specializations" element={<SpecializationList />} />
 <Route path="/admin/specializations/create" element={<SpecializationForm />} />
 <Route path="/admin/specializations/edit/:id" element={<SpecializationForm />} />
+<Route path="/become-doctor" element={<DoctorApplicationPage/>}/>
     </Routes>
   );
 }

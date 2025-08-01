@@ -28,6 +28,25 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
   }
 };
 
+// File filter for documents (PDF, DOC, DOCX, images)
+const documentFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'image/jpeg',
+    'image/jpg',  
+    'image/png',
+    'image/gif'
+  ];
+  
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only PDF, DOC, DOCX, and image files are allowed!'));
+  }
+};
+
 export const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
@@ -35,6 +54,25 @@ export const upload = multer({
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
 });
+
+export const uploadDocument = multer({
+  storage: storage,
+  fileFilter: documentFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for documents
+  },
+});
+
+export const uploadDoctorApplication = multer({
+  storage: storage,
+  fileFilter: documentFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+}).fields([
+  { name: 'idProof', maxCount: 1 },
+  { name: 'resume', maxCount: 1 }
+]);
 
 // Cleanup uploaded file after processing
 export const cleanupFile = (filePath: string) => {

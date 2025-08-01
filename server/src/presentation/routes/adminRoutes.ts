@@ -12,10 +12,11 @@ import { blockPatientController,
 
  import { createSpecialization,updateSpecialization,deleteSpecialization, getSpecializations } from '../controllers/adminController.ts/specializationController'
 import { upload } from '../../infrastructure/config/multerConfig'
+import { ApplicationController } from '../controllers/ApplicationController/ApplicationController'
 
 
 const AdminRouter=express.Router()
-
+const applicationController = new ApplicationController();
 AdminRouter.post("/register",adminRegisterController);
 
 AdminRouter.post("/login",adminLoginController)
@@ -41,4 +42,7 @@ AdminRouter.post("/specializations", adminAuthGuard, upload.single('image'), cre
 AdminRouter.put("/specializations/:id", adminAuthGuard, upload.single('image'), updateSpecialization);
 AdminRouter.get("/specializations", adminAuthGuard, getSpecializations);
 AdminRouter.delete("/specializations/:id", adminAuthGuard, deleteSpecialization);
+
+AdminRouter.get('/applications',adminAuthGuard,applicationController.listApplicationsController)
+AdminRouter.get('/applications/:id',adminAuthGuard,applicationController.getApplicationByIdController)
 export default AdminRouter;
