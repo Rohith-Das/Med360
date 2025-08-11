@@ -39,8 +39,18 @@ import { MongoApplicantRepository } from "../database/repositores/MongoApplicant
 import { SubmitApplicationUC } from "../../application/ApplicantUC/SubmitApplicationUC";
 import { ListApplicationUC } from "../../application/ApplicantUC/ListApplicationUC";
 import { GetApplicationByIdUC } from "../../application/ApplicantUC/GetApplicationBtIdUC";
+import { ApproveApplicationUC } from "../../application/ApplicantUC/ApproveApplicationUC";
+import { RejectApplicationUC } from "../../application/ApplicantUC/RejectApplicationUC";
+import { IDoctorRepository } from "../../domain/repositories/DoctorRepository-method";
+import { MongoDoctorRepository } from "../database/repositores/MongoDoctorRepository";
+import { CreateDoctorFromApplicationUC } from "../../application/doctors/CreateDoctorFromApplicationUC";
 
-
+import { DoctorLoginUC } from "../../application/doctors/AuthUC/DoctorLoginUC";
+import { doctorRefereshTokenUc } from "../../application/doctors/AuthUC/DoctorRefreshTokenUC";
+import { GetAllDoctorUC } from "../../application/doctors/GetAllDoctorUC";
+import { UnBlockDoctorUC } from "../../application/doctors/UnblockDoctorUC";
+import { BlockDoctorUC } from "../../application/doctors/BlockDoctorsUC";
+import { UpdateDoctorUC } from "../../application/doctors/UpdateDoctorUC";
 
 
 
@@ -52,6 +62,8 @@ container.register<IPatientRepository>('IPatientRepository', MongoPatientReposit
 container.register<IAdminRepository>("IAdminRepository", MongoAdminRepository);
 container.register<ISpecializationRepository>("ISpecializationRepository",MongoSpecializationRepository);
 container.register<IApplicantRepository>("IApplicantRepository",MongoApplicantRepository)
+container.register<IDoctorRepository>("IDoctorRepository", MongoDoctorRepository);
+
 // Services
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
@@ -87,4 +99,13 @@ container.registerSingleton(DeleteSpecializationUC)
 container.registerSingleton(SubmitApplicationUC)
 container.registerSingleton(ListApplicationUC)
 container.registerSingleton(GetApplicationByIdUC)
+container.registerSingleton(ApproveApplicationUC)
+container.registerSingleton(RejectApplicationUC)
+container.registerSingleton(CreateDoctorFromApplicationUC);
+container.registerSingleton(DoctorLoginUC);
+container.registerSingleton(doctorRefereshTokenUc);
+container.registerSingleton(GetAllDoctorUC)
+container.registerSingleton(UnBlockDoctorUC)
+container.registerSingleton(BlockDoctorUC)
+container.registerSingleton(UpdateDoctorUC)
 export {container}

@@ -10,6 +10,7 @@ import { container } from "tsyringe";
 import AdminRouter from "./presentation/routes/adminRoutes";
 import path=require('path')
 import AppRouter from "./presentation/routes/ApplicationRoutes";
+import DoctorRouter from "./presentation/routes/DoctorRoutes";
 
 
 export const startServer = async () => {
@@ -37,7 +38,7 @@ export const startServer = async () => {
   app.use("/api/patient", PatientRouter);
   app.use("/api/admin",AdminRouter)
   app.use("/api/application", AppRouter); 
-
+ app.use("/api/doctor", DoctorRouter);
   const dbClient = container.resolve(mongoDBClient);
   await dbClient.connect();
 app.use(express.static(path.join(__dirname, '../../client/build')));

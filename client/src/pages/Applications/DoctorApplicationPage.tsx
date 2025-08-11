@@ -1,4 +1,3 @@
-// src/pages/doctorPages/DoctorApplicationPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Application_BASE_URL, { API_ENDPOINTS } from '@/api/ApplicationApi';

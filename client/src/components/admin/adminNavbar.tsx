@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import AdminSidebar from './adminSidebar';
 
 interface AdminNavbarProps {
   toggleSidebar: () => void;
@@ -10,8 +11,9 @@ const AdminNavbar: React.FC<AdminNavbarProps> = ({ toggleSidebar, isSidebarOpen 
   const navItems = [
     { name: 'Dashboard', path: '/admin/dashboard' },
     { name: 'Patients', path: '/admin/patients' },
+     { name: 'Doctors', path: '/admin/doctors' },
     { name: 'Appointments', path: '/admin/appointments' },
-    { name: 'Specialisations', path: '/admin/specialisations' },
+    { name: 'Specializations', path: '/admin/specializations' },
     { name: 'Applications', path: '/admin/applications' },
     { name: 'Settings', path: '/admin/settings' },
     { name: 'Logout', path: '/admin/logout' },

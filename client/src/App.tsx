@@ -16,6 +16,11 @@ import ProfilePage from "./pages/patientPages/PatientProfile";
 import SpecializationList from "./pages/adminPages/SpecializationList";
 import SpecializationForm from "./pages/adminPages/SpecializationForm";
 import DoctorApplicationPage from "./pages/Applications/DoctorApplicationPage";
+import ApplicationsPage from "./pages/adminPages/Application";
+import DoctorCreatePage from "./pages/doctorPages/DoctorCreatePage";
+import DoctorLoginPage from "./pages/doctorPages/DoctorLoginPage";
+import ListDoctors from "./pages/adminPages/ListDoctors";
+
 
 
 function App() {
@@ -69,6 +74,12 @@ function App() {
 <Route path="/admin/specializations/create" element={<SpecializationForm />} />
 <Route path="/admin/specializations/edit/:id" element={<SpecializationForm />} />
 <Route path="/become-doctor" element={<DoctorApplicationPage/>}/>
+
+
+<Route path="/admin/applications" element={<ApplicationsPage/>}/>
+      <Route path="/admin/doctors/create/:applicationId" element={<DoctorCreatePage />} />
+<Route path="/doctor/login" element={<DoctorLoginPage />} />
+ <Route path="/admin/doctors" element={<ListDoctors />} />
     </Routes>
   );
 }

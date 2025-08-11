@@ -8,8 +8,7 @@ adminAxiosInstance.interceptors.request.use((config)=>{
     const state=store.getState();
     let token=state.adminAuth.adminAccessToken;
     if (!token) {
-    token = localStorage.getItem("adminaAccessToken");
-  }
+token = localStorage.getItem("adminAccessToken");  }
     if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
   }

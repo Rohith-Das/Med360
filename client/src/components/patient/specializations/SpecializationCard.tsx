@@ -1,3 +1,7 @@
+
+
+
+
 import React, { useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { fetchSpecializations } from "@/features/specialization/specializationSlice";
@@ -14,17 +18,17 @@ interface Specialization {
 
 const SpecializationCard: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { specializations, loading, error } = useAppSelector(state => state.specialization);
+  const { specializations, loading, error } = useAppSelector((state) => state.specialization);
 
   useEffect(() => {
     dispatch(fetchSpecializations());
   }, [dispatch]);
 
-  if (loading) return <div className="text-center py-8">Loading specializations...</div>;
-  if (error) return <div className="text-center py-8 text-red-500">Error: {error}</div>;
-  if (!specializations.length) return <div className="text-center py-8">No specializations available</div>;
+  if (loading) return <div className="py-12 text-center text-lg font-semibold text-gray-700">Loading specializations...</div>;
+  if (error) return <div className="py-12 text-center text-lg font-semibold text-red-500">Error: {error}</div>;
+  if (!specializations.length) return <div className="py-12 text-center text-lg font-semibold text-gray-500">No specializations available.</div>;
 
-  // Slider settings for sm and md screens
+  // Slider settings for small and medium screens
   const sliderSettings = {
     dots: true,
     infinite: true,
@@ -33,65 +37,70 @@ const SpecializationCard: React.FC = () => {
     slidesToScroll: 1,
     autoplay: true,
     autoplaySpeed: 3000,
-    arrows: true,
+    arrows: false, // Arrows are now hidden for smaller screens
     responsive: [
       {
-        breakpoint: 1024, // lg breakpoint
+        breakpoint: 768,
         settings: {
-          slidesToShow: 1,
-          slidesToScroll: 1,
+          arrows: true,
         },
       },
     ],
   };
 
+  const cardClasses = "bg-white rounded-xl shadow-lg hover:shadow-2xl transform transition-all duration-500 hover:scale-105 overflow-hidden border border-gray-100";
+  const imageClasses = "w-full h-48 object-cover rounded-t-xl transition-transform duration-500 group-hover:scale-110";
+  const titleClasses = "text-2xl font-bold text-gray-800 mb-2";
+  const buttonClasses = "mt-4 inline-block bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold py-3 px-6 rounded-full shadow-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105";
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h2 className="text-3xl font-bold mb-6 text-center">Our Specializations</h2>
-      
-      {/* Slider for sm and md screens */}
-      <div className="lg:hidden">
-        <Slider {...sliderSettings}>
+    <section className="bg-gray-50 py-16">
+      <div className="container mx-auto px-6">
+        <h2 className="text-4xl font-extrabold text-center text-gray-900 mb-12 tracking-tight">
+          Explore Our Specializations
+        </h2>
+
+        {/* Slider for tablets and smaller screens */}
+        <div className="lg:hidden">
+          <Slider {...sliderSettings}>
+            {specializations.map((spec: Specialization) => (
+              <div key={spec.id} className="px-4 py-2">
+                <Link to={`/specialization/${spec.id}`} className="group block">
+                  <div className={cardClasses}>
+                    <div className="relative overflow-hidden">
+                      <img src={spec.imageUrl} alt={spec.name} className={imageClasses} />
+                      <div className="absolute inset-0 bg-black bg-opacity-25 group-hover:bg-opacity-0 transition-all duration-500"></div>
+                    </div>
+                    <div className="p-6 text-center">
+                      <h3 className={titleClasses}>{spec.name}</h3>
+                      <span className="text-blue-600 font-medium hover:underline">View Doctors</span>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            ))}
+          </Slider>
+        </div>
+
+        {/* Grid for desktop screens */}
+        <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-8">
           {specializations.map((spec: Specialization) => (
-            <div key={spec.id} className="px-2">
-              <div className="bg-white rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                <img src={spec.imageUrl} alt={spec.name} className="w-full h-48 object-cover" />
-                <div className="p-4">
-                  <h3 className="text-xl font-semibold mb-2">{spec.name}</h3>
-                  <Link
-                    to={`/specialization/${spec.id}`}
-                    className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    Learn More
-                  </Link>
+            <Link to={`/specialization/${spec.id}`} key={spec.id} className="group block">
+              <div className={cardClasses}>
+                <div className="relative overflow-hidden">
+                  <img src={spec.imageUrl} alt={spec.name} className={imageClasses} />
+                  <div className="absolute inset-0 bg-black bg-opacity-25 group-hover:bg-opacity-0 transition-all duration-500"></div>
+                </div>
+                <div className="p-6 text-center">
+                  <h3 className={titleClasses}>{spec.name}</h3>
+                  <span className="text-blue-600 font-medium hover:underline">View Doctors</span>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
-        </Slider>
+        </div>
       </div>
-
-      {/* Grid for lg and larger screens */}
-      <div className="hidden lg:grid grid-cols-4 xl:grid-cols-5 gap-6">
-        {specializations.map((spec: Specialization) => (
-          <div
-            key={spec.id}
-            className="bg-white rounded-lg shadow-md overflow-hidden transition-transform duration-300 hover:scale-105 hover:shadow-lg"
-          >
-            <img src={spec.imageUrl} alt={spec.name} className="w-full h-48 object-cover" />
-            <div className="p-4">
-              <h3 className="text-xl font-semibold mb-2">{spec.name}</h3>
-              <Link
-                to={`/specialization/${spec.id}`}
-                className="inline-block bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Learn More
-              </Link>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    </section>
   );
 };
 

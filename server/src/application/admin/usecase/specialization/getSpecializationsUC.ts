@@ -7,7 +7,7 @@ export class getSpecializationsUC{
     constructor(
         @inject("ISpecializationRepository")private repo:ISpecializationRepository,
     ){}
-    async execute():Promise<Specialization[]>{
-        return this.repo.findAll()
+    async execute(search?:string):Promise<Specialization[]>{
+        return this.repo.findAll(search)
     }
 }

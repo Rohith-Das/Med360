@@ -1,6 +1,9 @@
 import { combineReducers, configureStore } from "@reduxjs/toolkit";
 import authReducer from '../features/auth/authSlice'
 import adminAuthReducer from '../features/auth/adminAuthSlice'
+import doctorAuthReducer from '../features/auth/doctorAuthSlice';
+import doctorsReducer from '../features/Doctor/doctorSlice';
+import adminDoctorsReducer from '../features/admin/DoctorMgtSlice'
 import {
   persistStore,
   persistReducer,
@@ -19,12 +22,15 @@ const rootReducer=combineReducers({
     auth:authReducer,
     adminAuth:adminAuthReducer,
     profile: profileReducer,
-     specialization: specializationReducer
+     specialization: specializationReducer,
+       doctorAuth: doctorAuthReducer,
+       doctors:doctorsReducer,
+       adminDoctors: adminDoctorsReducer,
 })
 const persistConfig={
     key:'root',
     storage,
-    whitelist:['auth','adminAuth','profile']
+    whitelist:['auth','adminAuth','profile','doctorAuth']
 }
 
 const persistedReducer=persistReducer(persistConfig,rootReducer);

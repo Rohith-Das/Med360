@@ -1,0 +1,53 @@
+import axios from "axios";
+import { store } from "../app/store";
+
+const doctorAxiosInstance = axios.create({
+  baseURL: "http://localhost:5001/api/",
+  withCredentials: true,
+});
+
+doctorAxiosInstance.interceptors.request.use((config) => {
+  const state = store.getState();
+  let token = state.doctorAuth.doctorAccessToken;
+  if (!token) {
+    token = localStorage.getItem("doctorAccessToken");
+  }
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  console.log('Doctor access token:', token);
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+doctorAxiosInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        const refreshResponse = await axios.post(
+          'http://localhost:5001/api/doctor/refresh-token',
+          {},
+          { withCredentials: true }
+        );
+        const newAccessToken = refreshResponse.data.data.doctorAccessToken;
+        const { setDoctorAccessToken } = await import('../features/auth/doctorAuthSlice');
+        store.dispatch(setDoctorAccessToken(newAccessToken));
+        originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+        return doctorAxiosInstance(originalRequest);
+      } catch (err) {
+        const { doctorLogout } = await import('../features/auth/doctorAuthSlice');
+        store.dispatch(doctorLogout());
+        localStorage.removeItem('doctorAccessToken');
+        window.location.href = '/doctor/login';
+        return Promise.reject(err);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default doctorAxiosInstance;

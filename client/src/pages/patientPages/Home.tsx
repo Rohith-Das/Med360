@@ -4,6 +4,8 @@ import Navbar from '../../components/patient/Navbar'
 import SideBar from '../../components/patient/SideBar'
 import HomeBanner from '../../components/patient/HomeBanner'
 import SpecializationCard from '@/components/patient/specializations/SpecializationCard'
+import DoctorsCards from '@/components/patient/DoctorsCards'
+import BookingSteps from '@/components/patient/BookingSteps'
 
 
 function Home() {
@@ -18,7 +20,10 @@ function Home() {
   </div> */}
   <div>
     <HomeBanner/>
+    <BookingSteps/>
     <SpecializationCard/>
+    <DoctorsCards/>
+
   </div>
 </div>
 

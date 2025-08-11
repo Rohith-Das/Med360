@@ -45,4 +45,7 @@ AdminRouter.delete("/specializations/:id", adminAuthGuard, deleteSpecialization)
 
 AdminRouter.get('/applications',adminAuthGuard,applicationController.listApplicationsController)
 AdminRouter.get('/applications/:id',adminAuthGuard,applicationController.getApplicationByIdController)
+AdminRouter.post('/applications/:id/approve',adminAuthGuard,  applicationController.approveApplicationController);
+AdminRouter.post('/applications/:id/reject', adminAuthGuard, applicationController.rejectApplication);
+AdminRouter.post('/doctors/create-from-application/:id', adminAuthGuard, upload.single('profileImage'), applicationController.createDoctorFromApplication);
 export default AdminRouter;

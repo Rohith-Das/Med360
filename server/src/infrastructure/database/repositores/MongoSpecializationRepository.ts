@@ -22,8 +22,9 @@ export class MongoSpecializationRepository implements ISpecializationRepository{
             ...spec.toObject()
         }
     }
-    async findAll(): Promise<Specialization[]> {
-        const spec=await SpecializationModel.find()
+    async findAll(search?:string): Promise<Specialization[]> {
+        const filter=search? {name:{$regex:search,$options:"i"}}:{}
+        const spec=await SpecializationModel.find(filter)
         return spec.map(spec=>({
             id:spec._id.toString(),
             ...spec.toObject()

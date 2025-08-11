@@ -7,7 +7,14 @@ export class ListApplicationUC{
     constructor(
         @inject('IApplicantRepository') private applicationRepo:IApplicantRepository
     ){}
-    async execute(status?:'pending'|'approved'|'rejected'):Promise<Applicant[]>{
-        return await this.applicationRepo.findAll(status)
+    async execute(page:number,limit:number,status?:'pending'|'approved'|'rejected',search?:string):Promise<{applications:Applicant[],totalPages:number}>{
+        const applications=await this.applicationRepo.findAllWithPagination(page,limit,status,search);
+        const totalCount=await this.applicationRepo.countAll(status,search);
+        const totalPages=Math.ceil(totalCount/limit)
+
+        return {
+            applications,
+            totalPages
+        }
     }
 }

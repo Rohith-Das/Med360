@@ -22,6 +22,7 @@ const applicantSchema = new Schema<Applicant>(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+    password: { type: String },
   },
   {
     timestamps: true,

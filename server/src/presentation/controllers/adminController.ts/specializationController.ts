@@ -65,8 +65,9 @@ export const updateSpecialization = async (req: Request, res: Response) =>{
 
 export const getSpecializations = async (req: Request, res: Response) =>{
     try {
+        const search=req.query.search ? String(req.query.search).trim():undefined;
         const UC=container.resolve(getSpecializationsUC)
-        const sp=await UC.execute();
+        const sp=await UC.execute(search);
         return res.status(200).json({
             success:true,
             data:sp

@@ -27,8 +27,9 @@ export class MongoApplicantRepository implements IApplicantRepository {
         };
     }
 
-    async findAll(): Promise<Applicant[]> {
-        const applicants = await ApplicantModel.find().populate('specialization').sort({ createdAt: -1 });
+    async findAll(status?:'pending'|'approved'|'rejected'): Promise<Applicant[]> {
+        const query=status?{status}:{};
+        const applicants = await ApplicantModel.find(query).populate('specialization').sort({ createdAt: -1 });
         return applicants.map(applicant => ({
             id: applicant._id.toString(),
             ...applicant.toObject()
@@ -67,4 +68,44 @@ export class MongoApplicantRepository implements IApplicantRepository {
         const result = await ApplicantModel.findByIdAndDelete(id);
         return !!result;
     }
+    async findAllWithPagination(page: number, limit: number, status?: "pending" | "approved" | "rejected",search?: string): Promise<Applicant[]> {
+        const skip=(page-1)*limit;
+        const query: any = {};
+
+        if(status){
+            query.status.status;
+        }
+        if(search){
+            query.$or=[
+                {name:{$regex:search,$options:'i'}},
+                {email:{$regex:search,$options:"i"}},
+                 { "specialization.name": { $regex: search, $options: "i" } }
+            ]
+        }
+        const applications=await ApplicantModel.find(query)
+        .skip(skip)
+        .limit(limit)
+        .populate('specialization')
+        .sort({ createdAt: -1 });
+
+        return applications.map(applicant=>({
+            id:applicant._id.toString(),
+            ...applicant.toObject()
+        }))
+    }
+    async countAll(status?: "pending" | "approved" | "rejected",search?: string): Promise<number> {
+        const query:any={}
+        if (status) {
+        query.status = status;
+    }
+    if (search) {
+        query.$or = [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { "specialization.name": { $regex: search, $options: "i" } }
+        ];
+    }
+        return await ApplicantModel.countDocuments(query)
+    }
+
 }

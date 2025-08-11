@@ -8,4 +8,7 @@ export interface IApplicantRepository {
     update(id: string, updates: Partial<Applicant>): Promise<Applicant | null>;
     delete(id: string): Promise<boolean>;
      findByEmail(email: string): Promise<Applicant | null>;
+     findAllWithPagination(page:number,limit:number,status?:'pending'| "approved" | "rejected",search?:string): Promise<Applicant[]>;
+         countAll(status?: "pending" | "approved" | "rejected",search?:string): Promise<number>;
+
 }

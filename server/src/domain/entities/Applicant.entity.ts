@@ -10,7 +10,7 @@ export interface Applicant  {
     phone:string;
     registerNo:string;
     specialization: Types.ObjectId | Specialization;
-
+ password?: string
     languages:string[];
     experience:number;
     licensedState:string;

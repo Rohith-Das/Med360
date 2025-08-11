@@ -11,4 +11,9 @@ export interface AuthService {
   generateAdminRefreshToken(payload: TokenPayload): string;
   verifyAdminAccessToken(token: string): TokenPayload;
   verifyAdminRefreshToken(token: string): TokenPayload;
+
+       generateDoctorAccessToken(payload: TokenPayload): string;
+  generateDoctorRefreshToken(payload: TokenPayload): string;
+  verifyDoctorAccessToken(token: string): TokenPayload;
+  verifyDoctorRefreshToken(token: string): TokenPayload;
 }
