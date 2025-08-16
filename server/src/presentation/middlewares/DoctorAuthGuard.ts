@@ -17,7 +17,7 @@ export const doctorAuthGuard = (req: AuthRequest, res: Response, next: NextFunct
 
     try {
       const payload = authService.verifyDoctorAccessToken(token);
-
+console.log("Decoded payload:", payload);
       if (payload.role !== "doctor") {
         return res.status(403).json({ success: false, message: "Doctor access required" });
       }

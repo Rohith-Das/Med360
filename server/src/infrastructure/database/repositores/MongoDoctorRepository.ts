@@ -42,7 +42,11 @@ export class MongoDoctorRepository implements IDoctorRepository{
     const result = await DoctorModel.findByIdAndDelete(id);
     return !!result;
   }
-   async findAll(query: { status?: string }): Promise<Doctor[]> {
-    return await DoctorModel.find(query).populate('specialization').exec();
+   async findAll(query: { status?: string ;specialization?:string}): Promise<Doctor[]> {
+    const doctor= await DoctorModel.find(query).populate('specialization').exec();
+    return doctor.map((doc)=>({
+        id:doc._id.toString(),
+        ...doc.toObject()
+    }))
   }
 }

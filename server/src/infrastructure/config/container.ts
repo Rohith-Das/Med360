@@ -51,6 +51,10 @@ import { GetAllDoctorUC } from "../../application/doctors/GetAllDoctorUC";
 import { UnBlockDoctorUC } from "../../application/doctors/UnblockDoctorUC";
 import { BlockDoctorUC } from "../../application/doctors/BlockDoctorsUC";
 import { UpdateDoctorUC } from "../../application/doctors/UpdateDoctorUC";
+import { IScheduleRepository } from "../../domain/repositories/ScheduleRepository-method";
+import { MongoScheduleRepository } from "../database/repositores/MongoScheduleRepo";
+import { CreateScheduleUC, DeleteScheduleUC, GetDoctorScheduleUC, ManageTimeSlotUC, UpdateScheduleUC } from "../../application/doctors/schedule/CreateScheduleUC";
+import { DoctorProfileUC } from "../../application/doctors/DoctorProfileUC";
 
 
 
@@ -63,7 +67,7 @@ container.register<IAdminRepository>("IAdminRepository", MongoAdminRepository);
 container.register<ISpecializationRepository>("ISpecializationRepository",MongoSpecializationRepository);
 container.register<IApplicantRepository>("IApplicantRepository",MongoApplicantRepository)
 container.register<IDoctorRepository>("IDoctorRepository", MongoDoctorRepository);
-
+container.register<IScheduleRepository>('IScheduleRepository',MongoScheduleRepository)
 // Services
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
@@ -108,4 +112,13 @@ container.registerSingleton(GetAllDoctorUC)
 container.registerSingleton(UnBlockDoctorUC)
 container.registerSingleton(BlockDoctorUC)
 container.registerSingleton(UpdateDoctorUC)
+
+container.registerSingleton(CreateScheduleUC)
+container.registerSingleton(GetDoctorScheduleUC)
+container.registerSingleton(UpdateScheduleUC)
+container.registerSingleton(DeleteScheduleUC)
+container.registerSingleton(ManageTimeSlotUC)
+
+container.registerSingleton(DoctorProfileUC)
+
 export {container}

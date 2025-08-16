@@ -20,8 +20,9 @@ import ApplicationsPage from "./pages/adminPages/Application";
 import DoctorCreatePage from "./pages/doctorPages/DoctorCreatePage";
 import DoctorLoginPage from "./pages/doctorPages/DoctorLoginPage";
 import ListDoctors from "./pages/adminPages/ListDoctors";
-
-
+import DoctorsBySpecialization from "./pages/patientPages/DoctorsBySpecialization";
+import DoctorTimeSlot from "./pages/doctorPages/DoctorTimeSlot";
+import DoctorProfile from "./pages/doctorPages/DoctorProfile";
 
 function App() {
   return (
@@ -80,6 +81,10 @@ function App() {
       <Route path="/admin/doctors/create/:applicationId" element={<DoctorCreatePage />} />
 <Route path="/doctor/login" element={<DoctorLoginPage />} />
  <Route path="/admin/doctors" element={<ListDoctors />} />
+ <Route path="/specialization/:specializationId" element={<DoctorsBySpecialization />} />
+<Route path="/doctor/time-slots" element={<DoctorTimeSlot />} />
+<Route path="/doctor/profile" element={<DoctorProfile/>}/>
+
     </Routes>
   );
 }

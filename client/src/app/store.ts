@@ -17,11 +17,12 @@ import {
 import storage from "redux-persist/lib/storage"; 
 import profileReducer  from '../features/profile/profileSlice';
 import specializationReducer from '../features/specialization/specializationSlice';
-
+import DoctorProfileReducer from '../features/profile/DoctorSlice'
 const rootReducer=combineReducers({
     auth:authReducer,
     adminAuth:adminAuthReducer,
     profile: profileReducer,
+    doctorProfile:DoctorProfileReducer,
      specialization: specializationReducer,
        doctorAuth: doctorAuthReducer,
        doctors:doctorsReducer,
@@ -30,7 +31,7 @@ const rootReducer=combineReducers({
 const persistConfig={
     key:'root',
     storage,
-    whitelist:['auth','adminAuth','profile','doctorAuth']
+    whitelist:['auth','adminAuth','profile','doctorAuth','doctorProfile']
 }
 
 const persistedReducer=persistReducer(persistConfig,rootReducer);

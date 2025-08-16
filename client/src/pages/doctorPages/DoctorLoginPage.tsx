@@ -4,6 +4,7 @@ import { useAppDispatch } from '@/app/hooks';
 import { doctorLoginUser } from '@/features/auth/doctorAuthThunk';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import DoctorNavbar from '@/components/doctor/DoctorNavbar';
 
 const DoctorLoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -29,6 +30,8 @@ const DoctorLoginPage: React.FC = () => {
   };
 
   return (
+    <>
+  <DoctorNavbar/>
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <h2 className="text-2xl font-bold mb-6 text-center">Doctor Login</h2>
@@ -64,6 +67,7 @@ const DoctorLoginPage: React.FC = () => {
       </div>
       <ToastContainer />
     </div>
+      </>
   );
 };
 

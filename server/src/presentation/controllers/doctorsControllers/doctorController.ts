@@ -15,7 +15,7 @@ export class DoctorController{
         try {
             const loginUC=container.resolve(DoctorLoginUC);
             const result=await loginUC.execute({email,password});
-             res.cookie("doctorRefreshToken", result.doctorRefereshToken, {
+             res.cookie("doctorRefreshToken", result.doctorRefreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: 'strict',
@@ -36,7 +36,7 @@ export class DoctorController{
 
     async refreshToken(req:Request,res:Response):Promise<Response>{
         try {
-            const refreshToken=req.cookies.doctorRefereshToken;
+            const refreshToken=req.cookies.doctorRefreshToken ;
             if (!refreshToken) {
         return res.status(401).json({ success: false, message: 'Doctor refresh token not found' });
       }
@@ -115,6 +115,23 @@ export class DoctorController{
     } catch (error: any) {
       console.error('Unblock doctor error:', error.message);
       return res.status(400).json({ success: false, message: error.message || 'Could not unblock doctor' });
+    }
+  }
+  async getDoctorsBySpecialization(req:Request,res:Response):Promise<Response>{
+    const {specializationId}=req.params;
+    try {
+      const useCase=container.resolve(GetAllDoctorUC);
+      const doctors=await useCase.execute({specializationId});
+      return res.status(200).json({
+        success:true,
+        message:"doctor retrived successfully",
+        data:doctors
+      })
+    } catch (error:any) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to retrieve doctors",
+      });
     }
   }
 }

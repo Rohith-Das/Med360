@@ -15,7 +15,7 @@ export class DoctorLoginUC{
     ){}
 
     async execute({email,password}:{email:string;password:string}):Promise<{
-        doctorAccessToken:string;doctorRefereshToken:string;doctor:Doctor
+        doctorAccessToken:string;doctorRefreshToken:string;doctor:Doctor
     }>{
         const doctor=await this.doctorRepo.findByEmail(email);
         if(!doctor || !doctor.password){
@@ -41,15 +41,15 @@ export class DoctorLoginUC{
     };
 
     const doctorAccessToken=this.authService.generateDoctorAccessToken(payload);
-    const doctorRefereshToken=this.authService.generateDoctorRefreshToken(payload);
+    const doctorRefreshToken=this.authService.generateDoctorRefreshToken(payload);
     await this.doctorRepo.update(doctor.id!,{
-        refreshToken:doctorRefereshToken,
+        refreshToken:doctorRefreshToken,
         refreshTokenExpiresAt:new Date(Date.now()+7*24*60*60*1000)
     })
         
         return{
             doctorAccessToken,
-            doctorRefereshToken,
+            doctorRefreshToken,
             doctor
         }
     }

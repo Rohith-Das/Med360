@@ -47,6 +47,7 @@ export const blockDoctor = createAsyncThunk(
     }
   }
 );
+
 export const unblockDoctor = createAsyncThunk(
   "adminDoctors/unblockDoctor",
   async (id: string) => {
