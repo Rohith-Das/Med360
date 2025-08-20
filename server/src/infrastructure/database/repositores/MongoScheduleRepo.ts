@@ -15,13 +15,28 @@ export class MongoScheduleRepository implements IScheduleRepository {
     };
   }
 
+  // async findById(id: string): Promise<Schedule | null> {
+  //   const schedule = await ScheduleModel.findById(id).populate('doctorId');
+  //   if (!schedule) return null;
+  //   return {
+  //     id: schedule._id.toString(),
+  //     ...schedule.toObject(),
+  //   };
+  // }
   async findById(id: string): Promise<Schedule | null> {
-    const schedule = await ScheduleModel.findById(id).populate('doctorId');
-    if (!schedule) return null;
-    return {
-      id: schedule._id.toString(),
-      ...schedule.toObject(),
-    };
+    try {
+      const schedule = await ScheduleModel.findById(id)
+        .populate("doctorId", "name specialization profileImage")
+        .populate("timeSlots");
+      if (!schedule) return null;
+      return {
+        id: schedule._id.toString(),
+        ...schedule.toObject(),
+      };
+    } catch (error) {
+      console.error(`Error in findById(${id}):`, error);
+      return null;
+    }
   }
 
   async findByDoctorAndDate(doctorId: string, date: Date): Promise<Schedule | null> {

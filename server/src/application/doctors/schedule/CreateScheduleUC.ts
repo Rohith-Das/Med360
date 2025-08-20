@@ -175,8 +175,11 @@ export class DeleteScheduleUC{
     if (!schedule) {
       throw new Error("Schedule not found");
     }
-
-    const timeSlot = schedule.timeSlots.find(slot => slot.id === timeSlotId);
+const timeSlot = schedule.timeSlots.find(slot => {
+      const slotId = slot._id?.toString() || slot.id?.toString();
+      return slotId === timeSlotId;
+    });
+    
     if (!timeSlot) {
       throw new Error("Time slot not found from updatetimeslot");
     }
@@ -196,8 +199,8 @@ export class DeleteScheduleUC{
     if (!schedule) {
       throw new Error('Schedule not found');
     }
-       console.log('schedule time slot  ',schedule.timeSlots)
-    console.log('doctorid',doctorId);
+    //    console.log('schedule time slot  ',schedule.timeSlots)
+    // console.log('doctorid',doctorId);
 
 const timeSlot = schedule.timeSlots.find(
   slot => slot._id.toString() === timeSlotId.toString()

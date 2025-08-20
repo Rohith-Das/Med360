@@ -12,6 +12,7 @@ import path=require('path')
 import AppRouter from "./presentation/routes/ApplicationRoutes";
 import DoctorRouter from "./presentation/routes/DoctorRoutes";
 import ScheduleRouter from "./presentation/routes/ScheduleRoutes";
+
 export const startServer = async () => {
   dotenv.config();
 
@@ -39,6 +40,7 @@ export const startServer = async () => {
   app.use("/api/application", AppRouter); 
  app.use("/api/doctor", DoctorRouter);
 app.use('/api/schedules', ScheduleRouter);
+
 
   const dbClient = container.resolve(mongoDBClient);
   await dbClient.connect();

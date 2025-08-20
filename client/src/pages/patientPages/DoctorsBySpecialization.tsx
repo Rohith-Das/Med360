@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAppDispatch, useAppSelector } from '@/app/hooks';
 import { useParams } from 'react-router-dom';
-import { getDoctorsBySpecialization } from '@/features/Doctor/doctorThunk';
+import { getDoctorsBySpecialization, getDoctorSchedules } from '@/features/Doctor/doctorThunk';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Navbar from '@/components/patient/Navbar';
+import { useNavigate } from 'react-router-dom';
 
 interface FilterState {
   search: string;
@@ -15,10 +16,35 @@ interface FilterState {
   consultationFee: number;
 }
 
+interface Doctor {
+  id: string;
+  name: string;
+  email: string;
+  specialization: { name: string; imageUrl: string };
+  experience: number;
+  languages: string[];
+  licensedState: string;
+  profileImage?: string;
+  consultationFee: number;
+  age?: number;
+  gender?: string;
+}
+
+interface TimeSlot {
+  id: string;
+  scheduleId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  isBooked: boolean;
+  isActive: boolean;
+}
+
 const DoctorsBySpecialization: React.FC = () => {
   const dispatch = useAppDispatch();
   const { specializationId } = useParams<{ specializationId: string }>();
-  const { doctors, status, error } = useAppSelector((state) => state.doctors);
+  const { doctors, timeSlots, status, error } = useAppSelector((state) => state.doctors);
+  const navigate=useNavigate()
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,11 +63,26 @@ const DoctorsBySpecialization: React.FC = () => {
   // Show/hide filters
   const [showFilters, setShowFilters] = useState(false);
 
+  // Booking modal state
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(null);
+
   useEffect(() => {
     if (specializationId) {
       dispatch(getDoctorsBySpecialization(specializationId));
     }
   }, [dispatch, specializationId]);
+
+  // Fetch doctor's schedules when modal is opened
+  const handleOpenBookingModal = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    dispatch(getDoctorSchedules(doctor.id))
+      .unwrap()
+      .then(() => setIsBookingModalOpen(true))
+      .catch((err) => toast.error(err.message || "Failed to fetch doctor's schedules"));
+  };
+
 
   // Get unique languages from all doctors
   const availableLanguages = useMemo(() => {
@@ -55,7 +96,6 @@ const DoctorsBySpecialization: React.FC = () => {
   // Combined filter and search logic
   const { filteredDoctors, totalPages, currentDoctors } = useMemo(() => {
     const filtered = doctors.filter(doctor => {
-      // Search filter
       if (filters.search) {
         const searchTerm = filters.search.toLowerCase();
         const matchesName = doctor.name.toLowerCase().includes(searchTerm);
@@ -67,36 +107,24 @@ const DoctorsBySpecialization: React.FC = () => {
           return false;
         }
       }
-
-      // Experience filter
       if (filters.experience && doctor.experience < filters.experience) {
         return false;
       }
-
-      // Age filter
       if (filters.age && doctor.age && doctor.age < filters.age) {
         return false;
       }
-
-      // Gender filter
       if (filters.gender && doctor.gender && doctor.gender !== filters.gender) {
         return false;
       }
-
-      // Language filter
       if (filters.language && !doctor.languages?.includes(filters.language)) {
         return false;
       }
-
-      // Consultation fee filter
       if (filters.consultationFee && doctor.consultationFee < filters.consultationFee) {
         return false;
       }
-
       return true;
     });
 
-    // Calculate pagination
     const pages = Math.ceil(filtered.length / itemsPerPage);
     const validCurrentPage = Math.min(currentPage, Math.max(1, pages));
     const startIdx = (validCurrentPage - 1) * itemsPerPage;
@@ -110,7 +138,6 @@ const DoctorsBySpecialization: React.FC = () => {
     };
   }, [doctors, filters, currentPage, itemsPerPage]);
 
-  // Reset to first page when filters change
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(1);
@@ -121,6 +148,31 @@ const DoctorsBySpecialization: React.FC = () => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setCurrentPage(1);
   };
+
+    const handleConfirmBooking = () => {
+    if (!selectedDoctor || !selectedTimeSlot) {
+      toast.error('Please select a time slot');
+      return;
+    }
+
+    // Close modal
+    setIsBookingModalOpen(false);
+
+    // Navigate to BookSummaryPage with booking data
+    navigate('/book-summary', {
+      state: {
+        bookingData: {
+          doctor: selectedDoctor,
+          timeSlot: selectedTimeSlot
+        }
+      }
+    });
+
+    // Reset selections
+    setSelectedTimeSlot(null);
+    setSelectedDoctor(null);
+  };
+
 
   const clearFilters = () => {
     setFilters({
@@ -249,7 +301,6 @@ const DoctorsBySpecialization: React.FC = () => {
 
         {/* Search and Filter Section */}
         <div className="mb-8">
-          {/* Search Bar and Controls */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center">
             <div className="flex-1 relative">
               <input
@@ -316,11 +367,9 @@ const DoctorsBySpecialization: React.FC = () => {
             </button>
           </div>
 
-          {/* Filter Panel */}
           {showFilters && (
             <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 transition-all duration-500 ease-in-out transform">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Experience Filter */}
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <span>Minimum Experience (Years)</span>
@@ -342,7 +391,6 @@ const DoctorsBySpecialization: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Age Filter */}
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <span>Minimum Age</span>
@@ -364,7 +412,6 @@ const DoctorsBySpecialization: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Gender Filter */}
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <span>Gender</span>
@@ -384,7 +431,6 @@ const DoctorsBySpecialization: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Language Filter */}
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <span>Language</span>
@@ -404,7 +450,6 @@ const DoctorsBySpecialization: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Consultation Fee Filter */}
                 <div className="space-y-3">
                   <label className="block text-sm font-medium text-gray-700 flex items-center space-x-2">
                     <span>Minimum Consultation Fee (₹)</span>
@@ -430,7 +475,6 @@ const DoctorsBySpecialization: React.FC = () => {
           )}
         </div>
 
-        {/* Results Count and Pagination Info */}
         <div className="mb-6 flex justify-between items-center">
           <p className="text-gray-600 text-sm">
             Showing {currentDoctors.length > 0 ? ((currentPage - 1) * itemsPerPage + 1) : 0}-{Math.min(currentPage * itemsPerPage, filteredDoctors.length)} of {filteredDoctors.length} doctors
@@ -458,7 +502,6 @@ const DoctorsBySpecialization: React.FC = () => {
           )}
         </div>
 
-        {/* Doctors List */}
         {!currentDoctors.length ? (
           <div className="py-12 text-center text-lg font-semibold text-gray-500">
             No doctors found matching your criteria.
@@ -471,14 +514,12 @@ const DoctorsBySpecialization: React.FC = () => {
                   key={doctor.id}
                   className="bg-white rounded-xl shadow-sm p-6 flex items-center justify-between hover:shadow-md transition-all duration-200"
                 >
-                  {/* Profile Image */}
                   <div className="flex items-center space-x-4">
                     <img
                       src={doctor.profileImage || "https://via.placeholder.com/100"}
                       alt={doctor.name}
                       className="w-20 h-20 rounded-lg object-cover"
                     />
-                    {/* Doctor Info */}
                     <div>
                       <h2 className="text-lg font-semibold text-gray-900">
                         Dr. {doctor.name}
@@ -501,7 +542,6 @@ const DoctorsBySpecialization: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="flex flex-col items-end space-y-2">
                     <p className="text-gray-900 font-semibold">
                       ₹ {doctor.consultationFee} <span className="text-sm">per consultation</span>
@@ -510,8 +550,8 @@ const DoctorsBySpecialization: React.FC = () => {
                       View Profile
                     </button>
                     <button
+                      onClick={() => handleOpenBookingModal(doctor)}
                       className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200"
-                      onClick={() => alert(`Book appointment with Dr. ${doctor.name}`)}
                     >
                       Book Appointment
                     </button>
@@ -520,11 +560,115 @@ const DoctorsBySpecialization: React.FC = () => {
               ))}
             </div>
 
-            {/* Pagination */}
             {renderPagination()}
           </>
         )}
+
+        {/* Booking Modal */}
+        {isBookingModalOpen && selectedDoctor && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">
+                  Book Appointment with Dr. {selectedDoctor.name}
+                </h2>
+                <button
+                  onClick={() => {
+                    setIsBookingModalOpen(false);
+                    setSelectedTimeSlot(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {status === 'loading' ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                  <p className="text-lg font-semibold text-gray-700">Loading available time slots...</p>
+                </div>
+              ) : timeSlots.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No available time slots for Dr. {selectedDoctor.name}.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {[...new Set(timeSlots.map(slot => new Date(slot.date).toDateString()))].map(dateStr => (
+                    <div key={dateStr} className="border rounded-lg p-4">
+                      <h3 className="text-lg font-medium text-gray-800 mb-3">
+                        {new Date(dateStr).toLocaleDateString('en-US', {
+                          weekday: 'long',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </h3>
+                      <div className="grid grid-cols-2 gap-3">
+                        {timeSlots
+                          .filter(slot => new Date(slot.date).toDateString() === dateStr)
+                          .filter(slot => !slot.isBooked && slot.isActive)
+                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                          .map(slot => (
+                            <button
+                              key={slot.id}
+                              onClick={() => setSelectedTimeSlot(slot)}
+                              className={`p-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                                selectedTimeSlot?.id === slot.id
+                                  ? 'bg-blue-500 text-white shadow-md'
+                                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-blue-50 hover:border-blue-300'
+                              }`}
+                            >
+                              {slot.startTime} - {slot.endTime}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {timeSlots.length > 0 && (
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setIsBookingModalOpen(false);
+                      setSelectedTimeSlot(null);
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                   <button
+                    onClick={handleConfirmBooking}
+                    disabled={!selectedTimeSlot}
+                    className={`px-4 py-2 rounded-lg font-medium ${
+                      selectedTimeSlot
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Confirm Booking
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+      
       <ToastContainer />
     </div>
   );

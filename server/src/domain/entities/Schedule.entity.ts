@@ -1,8 +1,9 @@
 // src/domain/entities/Schedule.entity.ts
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 
 export interface TimeSlot {
   id?: string;
+  _id?:mongoose.Types.ObjectId;
   startTime: string; 
   endTime: string;   
   isBooked: boolean;

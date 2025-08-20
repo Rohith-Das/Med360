@@ -23,6 +23,7 @@ import ListDoctors from "./pages/adminPages/ListDoctors";
 import DoctorsBySpecialization from "./pages/patientPages/DoctorsBySpecialization";
 import DoctorTimeSlot from "./pages/doctorPages/DoctorTimeSlot";
 import DoctorProfile from "./pages/doctorPages/DoctorProfile";
+import BookSummaryPage from "./pages/patientPages/BookSummaryPage";
 
 function App() {
   return (
@@ -84,6 +85,14 @@ function App() {
  <Route path="/specialization/:specializationId" element={<DoctorsBySpecialization />} />
 <Route path="/doctor/time-slots" element={<DoctorTimeSlot />} />
 <Route path="/doctor/profile" element={<DoctorProfile/>}/>
+ <Route
+        path="/book-summary"
+        element={
+          <ProtectedRoute>
+            <BookSummaryPage />
+          </ProtectedRoute>
+        }
+      />
 
     </Routes>
   );

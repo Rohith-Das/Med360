@@ -23,3 +23,28 @@ export const getDoctorsBySpecialization = createAsyncThunk(
     }
   }
 );
+
+export const getDoctorSchedules = createAsyncThunk(
+  "doctors/getDoctorSchedules",
+  async (doctorId: string) => {
+    try {
+      const res = await axiosInstance.get(`/schedules/doctor/${doctorId}`);
+      const schedules = res.data.data || [];
+      const allTimeSlots = schedules.flatMap((sh: any) =>
+        sh.timeSlots?.map((slot: any) => ({
+          id: slot._id || slot.id,
+          date: sh.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          isBooked: slot.isBooked || false,
+          isActive: slot.isActive !== false,
+          scheduleId: sh._id.toString()
+        })) || []
+      ).filter((slot: any) => slot.isActive);
+      return allTimeSlots;
+    } catch (error: any) {
+      console.error('Get doctor schedules error:', error);
+      throw error;
+    }
+  }
+);

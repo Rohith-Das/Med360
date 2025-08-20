@@ -4,6 +4,7 @@ import adminAuthReducer from '../features/auth/adminAuthSlice'
 import doctorAuthReducer from '../features/auth/doctorAuthSlice';
 import doctorsReducer from '../features/Doctor/doctorSlice';
 import adminDoctorsReducer from '../features/admin/DoctorMgtSlice'
+
 import {
   persistStore,
   persistReducer,
@@ -27,11 +28,13 @@ const rootReducer=combineReducers({
        doctorAuth: doctorAuthReducer,
        doctors:doctorsReducer,
        adminDoctors: adminDoctorsReducer,
+       
+         
 })
 const persistConfig={
     key:'root',
     storage,
-    whitelist:['auth','adminAuth','profile','doctorAuth','doctorProfile']
+    whitelist:['auth','adminAuth','profile','doctorAuth','doctorProfile',]
 }
 
 const persistedReducer=persistReducer(persistConfig,rootReducer);

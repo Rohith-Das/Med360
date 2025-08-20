@@ -56,8 +56,6 @@ import { MongoScheduleRepository } from "../database/repositores/MongoScheduleRe
 import { CreateScheduleUC, DeleteScheduleUC, GetDoctorScheduleUC, ManageTimeSlotUC, UpdateScheduleUC } from "../../application/doctors/schedule/CreateScheduleUC";
 import { DoctorProfileUC } from "../../application/doctors/DoctorProfileUC";
 
-
-
 // Database
 container.registerSingleton(mongoDBClient);
 
@@ -68,6 +66,7 @@ container.register<ISpecializationRepository>("ISpecializationRepository",MongoS
 container.register<IApplicantRepository>("IApplicantRepository",MongoApplicantRepository)
 container.register<IDoctorRepository>("IDoctorRepository", MongoDoctorRepository);
 container.register<IScheduleRepository>('IScheduleRepository',MongoScheduleRepository)
+
 // Services
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
@@ -120,5 +119,6 @@ container.registerSingleton(DeleteScheduleUC)
 container.registerSingleton(ManageTimeSlotUC)
 
 container.registerSingleton(DoctorProfileUC)
+
 
 export {container}

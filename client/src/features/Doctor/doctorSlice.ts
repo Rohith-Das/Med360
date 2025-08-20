@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { getDoctors, getDoctorsBySpecialization } from "./doctorThunk";
+import { getDoctors, getDoctorsBySpecialization,getDoctorSchedules } from "./doctorThunk";
 import { createTimeSlot,cancelTimeSlot,getTimeSlots } from "./TimeSlotThunk";
 interface Doctor {
   id: string;
@@ -11,8 +11,8 @@ interface Doctor {
   licensedState: string;
   profileImage?: string;
   consultationFee: number;
-  gender:string
-  age:number
+  age?:number
+  gender?:string;
 }
 
 interface TimeSlot {
@@ -99,7 +99,20 @@ const doctorsSlice = createSlice({
       .addCase(cancelTimeSlot.rejected, (state, action) => {
         state.status = "failed";
         state.error = action.error.message || "Failed to cancel time slot";
-      });
+      })
+        .addCase(getDoctorSchedules.pending, (state) => {
+        state.status = "loading";
+        state.error = null;
+      })
+      .addCase(getDoctorSchedules.fulfilled, (state, action: PayloadAction<TimeSlot[]>) => {
+        state.status = "succeeded";
+        state.timeSlots = action.payload;
+      })
+      .addCase(getDoctorSchedules.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.error.message || "Failed to fetch doctor schedules";
+      })
+
   },
 });
 
