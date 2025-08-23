@@ -16,6 +16,7 @@ import { uploadProfilePicture,removeProfilePicture } from '../controllers/patien
 
 const PatientRouter=express.Router()
 
+
 PatientRouter.post('/register', registerPatientController);
 PatientRouter.post('/verify-otp', verifyOtpController);
 PatientRouter.post('/resend-otp',resendOtpController)

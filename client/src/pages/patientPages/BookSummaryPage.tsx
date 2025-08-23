@@ -4,7 +4,13 @@ import { useAppSelector } from '@/app/hooks';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Navbar from '@/components/patient/Navbar';
+import { RootState } from '@/app/store';
+import { useSelector } from 'react-redux';
+import axiosInstance from '@/api/axiosInstance';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Ry8nDQPSMKh6wj59Vl1vyfIlFPufhORU80t3wb4fm4xSlNuzQErls1yTWHdDte5F3BdJfuxTC6z36Zis9DIlEtq00cI9bNLCV');
 interface Doctor {
   id: string;
   name: string;
@@ -37,13 +43,15 @@ interface BookingData {
 const BookSummaryPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAppSelector((state) => state.auth.patient);
-  
+  const patient=useSelector((state:RootState)=>state.auth.patient)
+
+
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'stripe' | 'wallet'>('stripe');
+
 
   useEffect(() => {
-    // Get booking data from navigation state
     const data = location.state?.bookingData as BookingData;
     
     if (!data || !data.doctor || !data.timeSlot) {
@@ -73,46 +81,56 @@ const BookSummaryPage: React.FC = () => {
     });
   };
 
-  const handlePaymentRedirect = async () => {
-    if (!bookingData) return;
-    
-    setLoading(true);
-    
-    try {
-      // Here you would typically create a payment session with Stripe
-      // For now, we'll simulate the process
-      
+const handlePaymentRedirect = async () => {
+  if (!bookingData || !patient) return;
+  setLoading(true);
+
+  try {
+    if (selectedPaymentMethod === 'stripe') {
       const paymentData = {
-        doctorId: bookingData.doctor.id,
-        patientId: user?.id,
-        timeSlotId: bookingData.timeSlot.id,
-        scheduleId: bookingData.timeSlot.scheduleId,
-        amount: bookingData.doctor.consultationFee,
-        date: bookingData.timeSlot.date,
-        startTime: bookingData.timeSlot.startTime,
-        endTime: bookingData.timeSlot.endTime,
+        bookingData: {
+          doctor: {
+            id: bookingData.doctor.id,
+            consultationFee: bookingData.doctor.consultationFee,
+          },
+          timeSlot: {
+            id: bookingData.timeSlot.id,
+            scheduleId: bookingData.timeSlot.scheduleId,
+            date: bookingData.timeSlot.date,
+            startTime: bookingData.timeSlot.startTime,
+            endTime: bookingData.timeSlot.endTime,
+          },
+        },
+        paymentMethod: 'stripe',
       };
 
-      // TODO: Replace with actual Stripe integration
-      console.log('Redirecting to payment gateway with data:', paymentData);
+      const response = await axiosInstance.post('/payment/create-payment-intent', paymentData);
       
-      // Simulate payment gateway redirect
-      toast.info('Redirecting to payment gateway...');
-      
-      // You would typically call your backend to create a Stripe session
-      // const response = await createPaymentSession(paymentData);
-      // window.location.href = response.data.url;
-      
-    } catch (error: any) {
-      console.error('Payment redirect error:', error);
-      toast.error('Failed to redirect to payment gateway. Please try again.');
-    } finally {
-      setLoading(false);
+      if (response.data.success) {
+        navigate('/payment', {
+          state: {
+            clientSecret: response.data.data.clientSecret,
+            appointmentId: response.data.data.appointmentId,
+            paymentId: response.data.data.paymentId,
+            bookingData,
+          },
+        });
+      } else {
+        throw new Error(response.data.message || 'Failed to create payment intent');
+      }
+    } else if (selectedPaymentMethod === 'wallet') {
+      toast.info('Wallet payment is not yet available. Please use Stripe.');
     }
-  };
+  } catch (error: any) {
+    console.error('Payment redirect error:', error);
+    toast.error(error.message || 'Failed to redirect to payment gateway. Please try again.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleEditBooking = () => {
-    navigate(-1); // Go back to doctor selection
+    navigate(-1);
   };
 
   if (!bookingData) {
@@ -215,16 +233,58 @@ const BookSummaryPage: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Patient Name</p>
-                    <p className="font-semibold text-gray-800">{user?.name || 'N/A'}</p>
+                    <p className="font-semibold text-gray-800">{patient?.name || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Email</p>
-                    <p className="font-semibold text-gray-800">{user?.email || 'N/A'}</p>
+                    <p className="font-semibold text-gray-800">{patient?.email || 'N/A'}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Mobile</p>
-                    <p className="font-semibold text-gray-800">{user?.mobile || 'N/A'}</p>
+                    <p className="font-semibold text-gray-800">{patient?.mobile || 'N/A'}</p>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Method Selection */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <svg className="h-5 w-5 text-yellow-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                  />
+                </svg>
+                Payment Method
+              </h3>
+              <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                <div className="flex gap-4">
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="stripe"
+                      checked={selectedPaymentMethod === 'stripe'}
+                      onChange={() => setSelectedPaymentMethod('stripe')}
+                      className="form-radio h-5 w-5 text-blue-600"
+                    />
+                    <span className="text-gray-700">Stripe (Credit/Debit Card)</span>
+                  </label>
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="wallet"
+                      checked={selectedPaymentMethod === 'wallet'}
+                      onChange={() => setSelectedPaymentMethod('wallet')}
+                      disabled
+                      className="form-radio h-5 w-5 text-blue-600 opacity-50"
+                    />
+                    <span className="text-gray-500">Wallet (Coming Soon)</span>
+                  </label>
                 </div>
               </div>
             </div>
@@ -267,7 +327,7 @@ const BookSummaryPage: React.FC = () => {
               
               <div className="bg-red-50 rounded-lg p-4 border border-red-200">
                 <ul className="text-sm text-gray-700 space-y-1">
-                  <li>• Please arrive 10 minutes before your scheduled appointment time</li>
+                 
                   <li>• Carry a valid ID proof and any previous medical records</li>
                   <li>• Cancellation is allowed up to 2 hours before the appointment</li>
                   <li>• Refunds will be processed within 5-7 business days for valid cancellations</li>
@@ -276,7 +336,7 @@ const BookSummaryPage: React.FC = () => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-end">
+           <div className="flex flex-col sm:flex-row gap-4 justify-end">
               <button
                 onClick={handleEditBooking}
                 className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
@@ -285,9 +345,9 @@ const BookSummaryPage: React.FC = () => {
               </button>
               <button
                 onClick={handlePaymentRedirect}
-                disabled={loading}
+                disabled={loading || selectedPaymentMethod === 'wallet'}
                 className={`px-8 py-3 rounded-lg font-medium transition-all duration-200 ${
-                  loading
+                  loading || selectedPaymentMethod === 'wallet'
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-lg'
                 }`}

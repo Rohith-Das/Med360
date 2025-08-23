@@ -55,6 +55,16 @@ import { IScheduleRepository } from "../../domain/repositories/ScheduleRepositor
 import { MongoScheduleRepository } from "../database/repositores/MongoScheduleRepo";
 import { CreateScheduleUC, DeleteScheduleUC, GetDoctorScheduleUC, ManageTimeSlotUC, UpdateScheduleUC } from "../../application/doctors/schedule/CreateScheduleUC";
 import { DoctorProfileUC } from "../../application/doctors/DoctorProfileUC";
+import { PaymentService } from "../../application/service/PaymentService";
+import { StripePaymentService } from "../services/StripePaymentService";
+import { MongoPaymentRepository } from "../database/repositores/MongoPaymentRepo";
+import { MongoAppointmentRepo } from "../database/repositores/MongoAppointmentRepo";
+import { IPaymentRepository } from "../../domain/repositories/Paymentrepository";
+import { IAppointmentRepository } from "../../domain/repositories/AppointmentRepository";
+import { CreatePaymentUC } from "../../application/payment/CreatePaymentUC";
+import { ConfirmPaymentUC } from "../../application/payment/ConfirmPaymentUC";
+import { CreateAppointmentUC } from "../../application/Appointment/CreateAppointmentUC";
+
 
 // Database
 container.registerSingleton(mongoDBClient);
@@ -66,14 +76,12 @@ container.register<ISpecializationRepository>("ISpecializationRepository",MongoS
 container.register<IApplicantRepository>("IApplicantRepository",MongoApplicantRepository)
 container.register<IDoctorRepository>("IDoctorRepository", MongoDoctorRepository);
 container.register<IScheduleRepository>('IScheduleRepository',MongoScheduleRepository)
-
 // Services
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
 
 container.register<AuthService>("AuthService", { useClass: JwtAuthService });
 container.register<HashService>("HashService", { useClass: BcryptHashService });
-
 // Use Cases
 container.registerSingleton(PatientRegistrationUC);
 container.registerSingleton(RequestPasswordResetOtpUC);
@@ -119,6 +127,21 @@ container.registerSingleton(DeleteScheduleUC)
 container.registerSingleton(ManageTimeSlotUC)
 
 container.registerSingleton(DoctorProfileUC)
+
+
+// Add these registrations to your existing container.ts
+
+// Payment and Appointment repositories
+container.register<IPaymentRepository>('IPaymentRepository', MongoPaymentRepository);
+container.register<IAppointmentRepository>('IAppointmentRepository', MongoAppointmentRepo);
+
+// Payment service
+container.register<PaymentService>('PaymentService', StripePaymentService);
+
+// Payment use cases
+container.registerSingleton(CreatePaymentUC);
+container.registerSingleton(ConfirmPaymentUC);
+container.registerSingleton(CreateAppointmentUC);
 
 
 export {container}

@@ -1,7 +1,8 @@
 import { Types } from 'mongoose';
 
+// src/domain/entities/AppointmentEntity.ts
 export interface Appointment {
-  id?: string;
+  id: string;
   patientId: string;
   doctorId: string;
   scheduleId: string;
@@ -9,11 +10,9 @@ export interface Appointment {
   date: Date;
   startTime: string;
   endTime: string;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   consultationFee: number;
-  paymentStatus: 'pending' | 'completed' | 'failed' | 'refunded';
-  paymentId?: string;
-  stripePaymentIntentId?: string;
   notes?: string;
   createdAt?: Date;
   updatedAt?: Date;

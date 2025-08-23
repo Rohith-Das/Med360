@@ -24,7 +24,9 @@ import DoctorsBySpecialization from "./pages/patientPages/DoctorsBySpecializatio
 import DoctorTimeSlot from "./pages/doctorPages/DoctorTimeSlot";
 import DoctorProfile from "./pages/doctorPages/DoctorProfile";
 import BookSummaryPage from "./pages/patientPages/BookSummaryPage";
-
+import PaymentPage from "./pages/patientPages/PaymentPage";
+import PaymentSuccessPage from "./pages/patientPages/PaymentSuccessPage";
+import ViewAppointment from "./pages/patientPages/viewAppointment";
 function App() {
   return (
     <Routes>
@@ -93,6 +95,9 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/payment" element={<PaymentPage />} />
+<Route path="/payment/success" element={<PaymentSuccessPage />} />
+<Route path="/appointments" element={<ViewAppointment />} />
 
     </Routes>
   );
