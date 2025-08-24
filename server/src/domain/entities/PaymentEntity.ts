@@ -3,9 +3,9 @@ import { Types } from 'mongoose';
 // src/domain/entities/PaymentEntity.ts
 export interface Payment {
   id: string;
-  appointmentId: string;
-  patientId: string;
-  doctorId: string;
+  appointmentId: string|Types.ObjectId;
+  patientId: string|Types.ObjectId;
+  doctorId: string|Types.ObjectId;
   amount: number;
   currency: string;
   status: 'pending' | 'completed' | 'failed' | 'refunded';

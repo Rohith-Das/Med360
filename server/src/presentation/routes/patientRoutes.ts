@@ -12,11 +12,11 @@ import { authGuard } from '../middlewares/AuthMiddleware'
 import { getProfileController,updateProfileController } from '../controllers/patient/Profile/profileController'
 import { upload } from '../../infrastructure/config/multerConfig'
 import { uploadProfilePicture,removeProfilePicture } from '../controllers/patient/Profile/profileController'
-
-
+import { AppointmentController } from '../controllers/Appointment/AppointmentController'
+import { WalletController } from '../controllers/wallet/WalletController'
 const PatientRouter=express.Router()
-
-
+const appointmentController=new AppointmentController()
+const walletController = new WalletController()
 PatientRouter.post('/register', registerPatientController);
 PatientRouter.post('/verify-otp', verifyOtpController);
 PatientRouter.post('/resend-otp',resendOtpController)
@@ -31,5 +31,13 @@ PatientRouter.get("/profile", authGuard, getProfileController);
 PatientRouter.put("/profile", authGuard, updateProfileController);
 PatientRouter.post("/profile/picture", upload.single('profilePicture'),authGuard, uploadProfilePicture);
 PatientRouter.delete("/profile/picture", authGuard,removeProfilePicture);
+PatientRouter.get('/appointments',authGuard,appointmentController.getAppointments)
+PatientRouter.get('/appointments/:appointmentId', authGuard, appointmentController.getAppointmentById)
+PatientRouter.put('/appointments/:appointmentId/cancel', authGuard, appointmentController.cancelAppointment)
+
+// Wallet routes
+PatientRouter.get('/wallet/balance', authGuard, walletController.getWalletBalance)
+PatientRouter.get('/wallet/transactions', authGuard, walletController.getTransactionHistory)
+
 
 export default PatientRouter;

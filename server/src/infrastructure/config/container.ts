@@ -20,6 +20,7 @@ import { RequestPasswordResetOtpUC } from "../../application/patients/usecase/fo
 import { ResetPasswordWithOtpUC } from "../../application/patients/usecase/forgotPasswordUC/ResetPasswordWithOtpUC ";
 
 //admin patient management usecase
+
 import { GetAllPtientsUC } from "../../application/admin/usecase/patientMGT-UC.ts/getAllPatientsUC";
 import { blockPatientUC } from "../../application/admin/usecase/patientMGT-UC.ts/blockPatientUC";
 import { unblockPatientUC } from "../../application/admin/usecase/patientMGT-UC.ts/unblockPatientUC";
@@ -64,6 +65,12 @@ import { IAppointmentRepository } from "../../domain/repositories/AppointmentRep
 import { CreatePaymentUC } from "../../application/payment/CreatePaymentUC";
 import { ConfirmPaymentUC } from "../../application/payment/ConfirmPaymentUC";
 import { CreateAppointmentUC } from "../../application/Appointment/CreateAppointmentUC";
+import { GetAppointmentUC } from "../../application/Appointment/GetAppointment";
+import { IWalletRepository } from "../../domain/repositories/WalletRepository";
+import { MongoWalletRepo } from "../database/repositores/MongoWalletRepo";
+import { CancelAppointmentUC } from "../../application/Appointment/CancelAppointmentUC";
+import { WalletPaymentUC } from "../../application/payment/WalletPaymentUC";
+import { GetTransactionHistoryUC, GetWalletBalanceUC } from "../../application/payment/GetWalletBalanceUC";
 
 
 // Database
@@ -76,6 +83,10 @@ container.register<ISpecializationRepository>("ISpecializationRepository",MongoS
 container.register<IApplicantRepository>("IApplicantRepository",MongoApplicantRepository)
 container.register<IDoctorRepository>("IDoctorRepository", MongoDoctorRepository);
 container.register<IScheduleRepository>('IScheduleRepository',MongoScheduleRepository)
+container.register<IPaymentRepository>('IPaymentRepository', MongoPaymentRepository);
+container.register<IAppointmentRepository>('IAppointmentRepository', MongoAppointmentRepo);
+container.register<IWalletRepository>('IWalletRepository', MongoWalletRepo);
+
 // Services
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
@@ -128,13 +139,6 @@ container.registerSingleton(ManageTimeSlotUC)
 
 container.registerSingleton(DoctorProfileUC)
 
-
-// Add these registrations to your existing container.ts
-
-// Payment and Appointment repositories
-container.register<IPaymentRepository>('IPaymentRepository', MongoPaymentRepository);
-container.register<IAppointmentRepository>('IAppointmentRepository', MongoAppointmentRepo);
-
 // Payment service
 container.register<PaymentService>('PaymentService', StripePaymentService);
 
@@ -142,6 +146,10 @@ container.register<PaymentService>('PaymentService', StripePaymentService);
 container.registerSingleton(CreatePaymentUC);
 container.registerSingleton(ConfirmPaymentUC);
 container.registerSingleton(CreateAppointmentUC);
-
+container.registerSingleton(GetAppointmentUC)
+container.registerSingleton(CancelAppointmentUC);
+container.registerSingleton(WalletPaymentUC);
+container.registerSingleton(GetWalletBalanceUC);
+container.registerSingleton(GetTransactionHistoryUC);
 
 export {container}

@@ -9,18 +9,20 @@ export class MongoPaymentRepository implements IPaymentRepository {
   async create(payment: Omit<Payment, 'id'>): Promise<Payment> {
     const newPayment = new PaymentModel(payment);
     const saved = await newPayment.save();
-    return {
-      id: saved._id.toString(),
-      ...saved.toObject(),
-    };
+   return {
+  ...saved.toObject(),
+  id: saved._id.toString(),
+};
+
   }
 
   async findById(id: string): Promise<Payment | null> {
     const payment = await PaymentModel.findById(id);
     if (!payment) return null;
     return {
+       ...payment.toObject(),
       id: payment._id.toString(),
-      ...payment.toObject(),
+     
     };
   }
 
@@ -28,8 +30,9 @@ export class MongoPaymentRepository implements IPaymentRepository {
     const payment = await PaymentModel.findOne({ stripePaymentIntentId: paymentIntentId });
     if (!payment) return null;
     return {
+        ...payment.toObject(),
       id: payment._id.toString(),
-      ...payment.toObject(),
+    
     };
   }
 
@@ -37,8 +40,9 @@ export class MongoPaymentRepository implements IPaymentRepository {
     const payment = await PaymentModel.findOne({ appointmentId });
     if (!payment) return null;
     return {
+        ...payment.toObject(),
       id: payment._id.toString(),
-      ...payment.toObject(),
+    
     };
   }
 
@@ -46,16 +50,18 @@ export class MongoPaymentRepository implements IPaymentRepository {
     const updated = await PaymentModel.findByIdAndUpdate(id, updates, { new: true });
     if (!updated) return null;
     return {
+          ...updated.toObject(),
       id: updated._id.toString(),
-      ...updated.toObject(),
+  
     };
   }
 
   async findByPatientId(patientId: string): Promise<Payment[]> {
     const payments = await PaymentModel.find({ patientId }).sort({ createdAt: -1 });
     return payments.map(payment => ({
+       ...payment.toObject(),
       id: payment._id.toString(),
-      ...payment.toObject(),
+     
     }));
   }
 }

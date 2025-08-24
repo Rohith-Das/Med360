@@ -1,6 +1,6 @@
 import mongoose, { Schema, model } from 'mongoose';
 import { Payment } from '../../../domain/entities/PaymentEntity';
-
+import { Types } from 'mongoose';
 const PaymentSchema = new Schema<Payment>(
   {
     appointmentId: { type: Schema.Types.ObjectId, ref: 'Appointment', required: true },

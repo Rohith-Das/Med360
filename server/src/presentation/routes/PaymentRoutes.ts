@@ -18,5 +18,8 @@ PaymentRouter.post('/webhook', express.raw({ type: 'application/json' }), paymen
 
 // Get payment status
 PaymentRouter.get('/status/:appointmentId', authGuard, paymentController.getPaymentStatus);
+PaymentRouter.post('/wallet-pay', authGuard, paymentController.ProcessWalletPayment);
+PaymentRouter.get('/status/:appointmentId', authGuard, paymentController.getPaymentStatus);
+
 
 export default PaymentRouter;

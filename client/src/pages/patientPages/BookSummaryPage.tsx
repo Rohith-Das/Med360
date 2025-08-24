@@ -11,6 +11,7 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { loadStripe } from '@stripe/stripe-js';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_51Ry8nDQPSMKh6wj59Vl1vyfIlFPufhORU80t3wb4fm4xSlNuzQErls1yTWHdDte5F3BdJfuxTC6z36Zis9DIlEtq00cI9bNLCV');
+
 interface Doctor {
   id: string;
   name: string;
@@ -43,13 +44,34 @@ interface BookingData {
 const BookSummaryPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const patient=useSelector((state:RootState)=>state.auth.patient)
-
+  const patient = useSelector((state: RootState) => state.auth.patient);
 
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'stripe' | 'wallet'>('stripe');
+  const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [loadingWallet, setLoadingWallet] = useState(true);
 
+  // Fetch wallet balance when component mounts
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      try {
+        const response = await axiosInstance.get('/patient/wallet/balance');
+        if (response.data.success) {
+          setWalletBalance(response.data.data.balance);
+        }
+      } catch (error) {
+        console.error('Error fetching wallet balance:', error);
+        setWalletBalance(0);
+      } finally {
+        setLoadingWallet(false);
+      }
+    };
+
+    if (patient) {
+      fetchWalletBalance();
+    }
+  }, [patient]);
 
   useEffect(() => {
     const data = location.state?.bookingData as BookingData;
@@ -81,53 +103,93 @@ const BookSummaryPage: React.FC = () => {
     });
   };
 
-const handlePaymentRedirect = async () => {
-  if (!bookingData || !patient) return;
-  setLoading(true);
+  const handlePaymentMethodChange = (method: 'stripe' | 'wallet') => {
+    if (method === 'wallet' && bookingData && walletBalance < bookingData.doctor.consultationFee) {
+      toast.error(`Insufficient wallet balance. Available: ₹${walletBalance}, Required: ₹${bookingData.doctor.consultationFee}`);
+      return;
+    }
+    setSelectedPaymentMethod(method);
+  };
 
-  try {
-    if (selectedPaymentMethod === 'stripe') {
-      const paymentData = {
-        bookingData: {
-          doctor: {
-            id: bookingData.doctor.id,
-            consultationFee: bookingData.doctor.consultationFee,
-          },
-          timeSlot: {
-            id: bookingData.timeSlot.id,
-            scheduleId: bookingData.timeSlot.scheduleId,
-            date: bookingData.timeSlot.date,
-            startTime: bookingData.timeSlot.startTime,
-            endTime: bookingData.timeSlot.endTime,
-          },
-        },
-        paymentMethod: 'stripe',
-      };
+  const handlePaymentRedirect = async () => {
+    if (!bookingData || !patient) return;
+    setLoading(true);
 
-      const response = await axiosInstance.post('/payment/create-payment-intent', paymentData);
-      
-      if (response.data.success) {
-        navigate('/payment', {
-          state: {
-            clientSecret: response.data.data.clientSecret,
-            appointmentId: response.data.data.appointmentId,
-            paymentId: response.data.data.paymentId,
-            bookingData,
+    try {
+      if (selectedPaymentMethod === 'stripe') {
+        const paymentData = {
+          bookingData: {
+            doctor: {
+              id: bookingData.doctor.id,
+              consultationFee: bookingData.doctor.consultationFee,
+            },
+            timeSlot: {
+              id: bookingData.timeSlot.id,
+              scheduleId: bookingData.timeSlot.scheduleId,
+              date: bookingData.timeSlot.date,
+              startTime: bookingData.timeSlot.startTime,
+              endTime: bookingData.timeSlot.endTime,
+            },
+          },
+          paymentMethod: 'stripe',
+        };
+
+        const response = await axiosInstance.post('/payment/create-payment-intent', paymentData);
+        
+        if (response.data.success) {
+          navigate('/payment', {
+            state: {
+              clientSecret: response.data.data.clientSecret,
+              appointmentId: response.data.data.appointmentId,
+              paymentId: response.data.data.paymentId,
+              bookingData,
+            },
+          });
+        } else {
+          throw new Error(response.data.message || 'Failed to create payment intent');
+        }
+      } else if (selectedPaymentMethod === 'wallet') {
+        // Check wallet balance one more time before payment
+        if (walletBalance < bookingData.doctor.consultationFee) {
+          toast.error(`Insufficient wallet balance. Available: ₹${walletBalance}, Required: ₹${bookingData.doctor.consultationFee}`);
+          return;
+        }
+
+        const response = await axiosInstance.post('/payment/wallet-pay', {
+          bookingData: {
+            doctor: {
+              id: bookingData.doctor.id,
+              consultationFee: bookingData.doctor.consultationFee,
+            },
+            timeSlot: {
+              id: bookingData.timeSlot.id,
+              scheduleId: bookingData.timeSlot.scheduleId,
+              date: bookingData.timeSlot.date,
+              startTime: bookingData.timeSlot.startTime,
+              endTime: bookingData.timeSlot.endTime,
+            },
           },
         });
-      } else {
-        throw new Error(response.data.message || 'Failed to create payment intent');
+
+        if (response.data.success) {
+          toast.success('Payment successful! Your appointment has been booked.');
+          navigate('/payment/success', {
+            state: {
+              appointmentId: response.data.data.appointmentId,
+              bookingData,
+            },
+          });
+        } else {
+          throw new Error(response.data.message || 'Wallet payment failed');
+        }
       }
-    } else if (selectedPaymentMethod === 'wallet') {
-      toast.info('Wallet payment is not yet available. Please use Stripe.');
+    } catch (error: any) {
+      console.error('Payment redirect error:', error);
+      toast.error(error.message || 'Failed to redirect to payment gateway. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  } catch (error: any) {
-    console.error('Payment redirect error:', error);
-    toast.error(error.message || 'Failed to redirect to payment gateway. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleEditBooking = () => {
     navigate(-1);
@@ -148,6 +210,7 @@ const handlePaymentRedirect = async () => {
   }
 
   const { doctor, timeSlot } = bookingData;
+  const canUseWallet = walletBalance >= doctor.consultationFee;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -260,6 +323,18 @@ const handlePaymentRedirect = async () => {
                 </svg>
                 Payment Method
               </h3>
+              {loadingWallet ? (
+                <div className="text-sm text-gray-500 mt-1">Loading wallet balance...</div>
+              ) : (
+                <div className="mb-2">
+                  <p className="text-sm text-gray-500">
+                    Your wallet balance: ₹{walletBalance} 
+                    {!canUseWallet && (
+                      <span className="text-red-500 ml-2">(Insufficient for this booking)</span>
+                    )}
+                  </p>
+                </div>
+              )}
               <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
                 <div className="flex gap-4">
                   <label className="flex items-center space-x-2">
@@ -268,7 +343,7 @@ const handlePaymentRedirect = async () => {
                       name="paymentMethod"
                       value="stripe"
                       checked={selectedPaymentMethod === 'stripe'}
-                      onChange={() => setSelectedPaymentMethod('stripe')}
+                      onChange={() => handlePaymentMethodChange('stripe')}
                       className="form-radio h-5 w-5 text-blue-600"
                     />
                     <span className="text-gray-700">Stripe (Credit/Debit Card)</span>
@@ -279,13 +354,22 @@ const handlePaymentRedirect = async () => {
                       name="paymentMethod"
                       value="wallet"
                       checked={selectedPaymentMethod === 'wallet'}
-                      onChange={() => setSelectedPaymentMethod('wallet')}
-                      disabled
-                      className="form-radio h-5 w-5 text-blue-600 opacity-50"
+                      onChange={() => handlePaymentMethodChange('wallet')}
+                      disabled={!canUseWallet}
+                      className="form-radio h-5 w-5 text-blue-600 disabled:opacity-50"
                     />
-                    <span className="text-gray-500">Wallet (Coming Soon)</span>
+                    <span className={`${canUseWallet ? 'text-gray-700' : 'text-gray-400'}`}>
+                      Wallet {!canUseWallet && '(Insufficient balance)'}
+                    </span>
                   </label>
                 </div>
+                {selectedPaymentMethod === 'wallet' && canUseWallet && (
+                  <div className="mt-3 p-3 bg-green-100 rounded border border-green-300">
+                    <p className="text-sm text-green-700">
+                      ✓ Wallet payment selected. ₹{doctor.consultationFee} will be deducted from your wallet balance.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -313,6 +397,14 @@ const handlePaymentRedirect = async () => {
                     <span className="text-xl font-bold text-green-600">₹{doctor.consultationFee}</span>
                   </div>
                 </div>
+                {selectedPaymentMethod === 'wallet' && canUseWallet && (
+                  <div className="border-t border-yellow-300 pt-2 mt-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">Remaining Wallet Balance</span>
+                      <span className="font-medium text-blue-600">₹{walletBalance - doctor.consultationFee}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -327,16 +419,16 @@ const handlePaymentRedirect = async () => {
               
               <div className="bg-red-50 rounded-lg p-4 border border-red-200">
                 <ul className="text-sm text-gray-700 space-y-1">
-                 
                   <li>• Carry a valid ID proof and any previous medical records</li>
                   <li>• Cancellation is allowed up to 2 hours before the appointment</li>
                   <li>• Refunds will be processed within 5-7 business days for valid cancellations</li>
+                  <li>• For wallet payments, refunds will be credited back to your wallet instantly</li>
                 </ul>
               </div>
             </div>
 
             {/* Action Buttons */}
-           <div className="flex flex-col sm:flex-row gap-4 justify-end">
+            <div className="flex flex-col sm:flex-row gap-4 justify-end">
               <button
                 onClick={handleEditBooking}
                 className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
@@ -345,9 +437,9 @@ const handlePaymentRedirect = async () => {
               </button>
               <button
                 onClick={handlePaymentRedirect}
-                disabled={loading || selectedPaymentMethod === 'wallet'}
+                disabled={loading || (selectedPaymentMethod === 'wallet' && !canUseWallet)}
                 className={`px-8 py-3 rounded-lg font-medium transition-all duration-200 ${
-                  loading || selectedPaymentMethod === 'wallet'
+                  loading || (selectedPaymentMethod === 'wallet' && !canUseWallet)
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-lg'
                 }`}
@@ -359,7 +451,7 @@ const handlePaymentRedirect = async () => {
                   </div>
                 ) : (
                   <>
-                    Proceed to Payment
+                    {selectedPaymentMethod === 'wallet' ? 'Pay With Wallet' : 'Proceed to Payment'}
                     <svg className="h-5 w-5 ml-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                     </svg>

@@ -10,8 +10,9 @@ export class MongoAppointmentRepo implements IAppointmentRepository {
     const newAppointment = new AppointmentModel(appointment);
     const saved = await newAppointment.save();
     return {
+        ...saved.toObject(),
       id: saved._id.toString(),
-      ...saved.toObject(),
+    
     };
   }
 
@@ -19,24 +20,27 @@ export class MongoAppointmentRepo implements IAppointmentRepository {
     const appointment = await AppointmentModel.findById(id);
     if (!appointment) return null;
     return {
+       ...appointment.toObject(),
       id: appointment._id.toString(),
-      ...appointment.toObject(),
+     
     };
   }
 
   async findByPatientId(patientId: string): Promise<Appointment[]> {
     const appointments = await AppointmentModel.find({ patientId }).sort({ createdAt: -1 });
     return appointments.map(appointment => ({
+          ...appointment.toObject(),
       id: appointment._id.toString(),
-      ...appointment.toObject(),
+  
     }));
   }
 
   async findByDoctorId(doctorId: string): Promise<Appointment[]> {
     const appointments = await AppointmentModel.find({ doctorId }).sort({ createdAt: -1 });
     return appointments.map(appointment => ({
+        ...appointment.toObject(),
       id: appointment._id.toString(),
-      ...appointment.toObject(),
+    
     }));
   }
 
@@ -44,8 +48,9 @@ export class MongoAppointmentRepo implements IAppointmentRepository {
     const updated = await AppointmentModel.findByIdAndUpdate(id, updates, { new: true });
     if (!updated) return null;
     return {
+          ...updated.toObject(),
       id: updated._id.toString(),
-      ...updated.toObject(),
+  
     };
   }
 

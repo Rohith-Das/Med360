@@ -3,10 +3,10 @@ import { Types } from 'mongoose';
 // src/domain/entities/AppointmentEntity.ts
 export interface Appointment {
   id: string;
-  patientId: string;
-  doctorId: string;
-  scheduleId: string;
-  timeSlotId: string;
+  patientId: string |Types.ObjectId ;
+  doctorId: string |Types.ObjectId ;
+  scheduleId: string |Types.ObjectId ;
+  timeSlotId: string |Types.ObjectId ;
   date: Date;
   startTime: string;
   endTime: string;

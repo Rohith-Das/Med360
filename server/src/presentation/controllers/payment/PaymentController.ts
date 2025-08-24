@@ -6,6 +6,7 @@ import { ConfirmPaymentUC } from '../../../application/payment/ConfirmPaymentUC'
 import { CreateAppointmentUC } from '../../../application/Appointment/CreateAppointmentUC';
 import { AuthRequest } from '../../middlewares/AuthRequest';
 import { StripePaymentService } from '../../../infrastructure/services/StripePaymentService';
+import { WalletPaymentUC } from '../../../application/payment/WalletPaymentUC';
 
 export class PaymentController {
   async createPaymentIntent(req: AuthRequest, res: Response): Promise<Response> {
@@ -151,6 +152,49 @@ export class PaymentController {
       return res.status(500).json({
         success: false,
         message: error.message || 'Failed to retrieve payment status',
+      });
+    }
+  }
+
+  async ProcessWalletPayment(req:AuthRequest,res:Response):Promise<Response>{
+    try {
+      const {bookingData}=req.body;
+      const patientId=req.user?.userId;
+
+      if(!patientId){
+       return res.status(401).json({ success: false, message: 'Unauthorized' });
+      }
+      if (!bookingData || !bookingData.doctor || !bookingData.timeSlot) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid booking data provided',
+        });
+      }
+      const walletPaymentUC=container.resolve(WalletPaymentUC)
+      const result=await walletPaymentUC.execute({
+             patientId,
+        doctorId: bookingData.doctor.id,
+        scheduleId: bookingData.timeSlot.scheduleId,
+        timeSlotId: bookingData.timeSlot.id,
+        date: new Date(bookingData.timeSlot.date),
+        startTime: bookingData.timeSlot.startTime,
+        endTime: bookingData.timeSlot.endTime,
+        consultationFee: bookingData.doctor.consultationFee,
+      })
+       return res.status(200).json({
+        success: true,
+        message: result.message,
+        data: {
+          appointmentId: result.appointment.id,
+          paymentId: result.payment.id,
+          appointment: result.appointment
+        },
+      });
+    } catch (error:any) {
+       console.error('Wallet payment error:', error);
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Wallet payment failed',
       });
     }
   }

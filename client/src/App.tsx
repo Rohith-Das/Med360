@@ -27,6 +27,7 @@ import BookSummaryPage from "./pages/patientPages/BookSummaryPage";
 import PaymentPage from "./pages/patientPages/PaymentPage";
 import PaymentSuccessPage from "./pages/patientPages/PaymentSuccessPage";
 import ViewAppointment from "./pages/patientPages/viewAppointment";
+import WalletPage from "./pages/patientPages/WalletPage";
 function App() {
   return (
     <Routes>
@@ -98,7 +99,7 @@ function App() {
       <Route path="/payment" element={<PaymentPage />} />
 <Route path="/payment/success" element={<PaymentSuccessPage />} />
 <Route path="/appointments" element={<ViewAppointment />} />
-
+<Route path="/wallet" element={<WalletPage />} />
     </Routes>
   );
 }
