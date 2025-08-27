@@ -8,7 +8,7 @@ export interface TimeSlot {
   endTime: string;   
   isBooked: boolean;
   isActive:boolean;
-    patientId?: Types.ObjectId;
+    patientId?: string | mongoose.Types.ObjectId | null;
 }
 
 export interface Schedule {

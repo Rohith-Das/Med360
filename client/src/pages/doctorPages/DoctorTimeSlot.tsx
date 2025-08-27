@@ -408,59 +408,83 @@ const DoctorTimeSlot: React.FC = () => {
                             </div>
                           </div>
                           
-                          {displayedDate?.toDateString() === date.toDateString() && (
-                            <div className="bg-gray-50 p-3 border-t border-gray-200">
-                              <ul className="space-y-2">
-                                {timeSlots
-                                  .filter(slot => new Date(slot.date).toDateString() === date.toDateString())
-                                  .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                                  .map((slot) => (
-                                    <li
-                                      key={slot.id}
-                                      className="flex justify-between items-center bg-white p-3 rounded border border-gray-200"
-                                    >
-                                      <div className="flex items-center">
-                                        <span className={`inline-block w-8 h-8 rounded-full flex items-center justify-center mr-3 font-medium ${
-                                          slot.isBooked 
-                                            ? 'bg-purple-100 text-purple-800' 
-                                            : 'bg-green-100 text-green-800'
-                                        }`}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                          </svg>
-                                        </span>
-                                        <span className="font-medium">
-                                          {slot.startTime} - {slot.endTime}
-                                        </span>
-                                        {slot.isBooked && (
-                                          <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-purple-100 text-purple-800">
-                                            Booked
-                                          </span>
-                                        )}
-                                      </div>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleCancelTimeSlot(slot.id, slot.scheduleId, slot.isBooked);
-                                        }}
-                                        disabled={slot.isBooked}
-                                        className={`px-3 py-1 rounded-lg font-medium text-sm ${slot.isBooked 
-                                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                                          : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
-                                      >
-                                        Cancel
-                                      </button>
-                                    </li>
-                                  ))}
-                              </ul>
-                              
-                              {timeSlots.filter(slot => new Date(slot.date).toDateString() === date.toDateString()).length === 0 && (
-                                <div className="text-center py-4 text-gray-500">
-                                  No time slots for this date
-                                </div>
-                              )}
-                            </div>
-                          )}
+                        
+
+{displayedDate?.toDateString() === date.toDateString() && (
+  <div className="bg-gray-50 p-3 border-t border-gray-200">
+    <ul className="space-y-2">
+      {timeSlots
+        .filter(slot => new Date(slot.date).toDateString() === date.toDateString())
+        .sort((a, b) => a.startTime.localeCompare(b.startTime))
+        .map((slot) => (
+          <li
+            key={slot.id}
+            className={`flex justify-between items-center p-3 rounded border transition-all ${
+              slot.isBooked 
+                ? 'bg-red-50 border-red-200' 
+                : 'bg-white border-gray-200'
+            }`}
+          >
+            <div className="flex items-center">
+              <span className={`inline-block w-8 h-8 rounded-full flex items-center justify-center mr-3 font-medium ${
+                slot.isBooked 
+                  ? 'bg-red-100 text-red-800' 
+                  : 'bg-green-100 text-green-800'
+              }`}>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  {slot.isBooked ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  )}
+                </svg>
+              </span>
+              <div>
+                <span className={`font-medium ${slot.isBooked ? 'text-red-800' : 'text-gray-800'}`}>
+                  {slot.startTime} - {slot.endTime}
+                </span>
+                {slot.isBooked && (
+                  <div className="text-sm text-red-600 mt-1">
+                    Patient booked
+                  </div>
+                )}
+              </div>
+              {slot.isBooked && (
+                <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-800 font-medium">
+                  BOOKED
+                </span>
+              )}
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancelTimeSlot(slot.id, slot.scheduleId, slot.isBooked);
+              }}
+              disabled={slot.isBooked}
+              className={`px-3 py-1 rounded-lg font-medium text-sm transition-colors ${
+                slot.isBooked 
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                  : 'bg-red-100 text-red-700 hover:bg-red-200'
+              }`}
+              title={slot.isBooked ? "Cannot cancel booked appointment" : "Cancel time slot"}
+            >
+              {slot.isBooked ? 'Booked' : 'Cancel'}
+            </button>
+          </li>
+        ))}
+    </ul>
+    
+    {timeSlots.filter(slot => new Date(slot.date).toDateString() === date.toDateString()).length === 0 && (
+      <div className="text-center py-4 text-gray-500">
+        No time slots for this date
+      </div>
+    )}
+  </div>
+)}
+
+
+
+
                         </div>
                       ))}
                     </div>

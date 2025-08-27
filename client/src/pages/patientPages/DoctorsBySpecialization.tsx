@@ -564,109 +564,155 @@ const DoctorsBySpecialization: React.FC = () => {
           </>
         )}
 
-        {/* Booking Modal */}
-        {isBookingModalOpen && selectedDoctor && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold text-gray-800">
-                  Book Appointment with Dr. {selectedDoctor.name}
-                </h2>
-                <button
-                  onClick={() => {
-                    setIsBookingModalOpen(false);
-                    setSelectedTimeSlot(null);
-                  }}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <svg
-                    className="h-6 w-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
+{isBookingModalOpen && selectedDoctor && (
+  <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-semibold text-gray-800">
+          Book Appointment with Dr. {selectedDoctor.name}
+        </h2>
+        <button
+          onClick={() => {
+            setIsBookingModalOpen(false);
+            setSelectedTimeSlot(null);
+          }}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          <svg
+            className="h-6 w-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
 
-              {status === 'loading' ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                  <p className="text-lg font-semibold text-gray-700">Loading available time slots...</p>
-                </div>
-              ) : timeSlots.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No available time slots for Dr. {selectedDoctor.name}.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {[...new Set(timeSlots.map(slot => new Date(slot.date).toDateString()))].map(dateStr => (
-                    <div key={dateStr} className="border rounded-lg p-4">
-                      <h3 className="text-lg font-medium text-gray-800 mb-3">
-                        {new Date(dateStr).toLocaleDateString('en-US', {
-                          weekday: 'long',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        {timeSlots
-                          .filter(slot => new Date(slot.date).toDateString() === dateStr)
-                          .filter(slot => !slot.isBooked && slot.isActive)
-                          .sort((a, b) => a.startTime.localeCompare(b.startTime))
-                          .map(slot => (
-                            <button
-                              key={slot.id}
-                              onClick={() => setSelectedTimeSlot(slot)}
-                              className={`p-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                                selectedTimeSlot?.id === slot.id
-                                  ? 'bg-blue-500 text-white shadow-md'
-                                  : 'bg-white text-gray-700 border border-gray-300 hover:bg-blue-50 hover:border-blue-300'
-                              }`}
-                            >
-                              {slot.startTime} - {slot.endTime}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {timeSlots.length > 0 && (
-                <div className="mt-6 flex justify-end space-x-3">
-                  <button
-                    onClick={() => {
-                      setIsBookingModalOpen(false);
-                      setSelectedTimeSlot(null);
-                    }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                   <button
-                    onClick={handleConfirmBooking}
-                    disabled={!selectedTimeSlot}
-                    className={`px-4 py-2 rounded-lg font-medium ${
-                      selectedTimeSlot
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    Confirm Booking
-                  </button>
-                </div>
-              )}
+      {status === 'loading' ? (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-lg font-semibold text-gray-700">Loading available time slots...</p>
+        </div>
+      ) : timeSlots.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          No available time slots for Dr. {selectedDoctor.name}.
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Legend */}
+          <div className="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-lg text-sm">
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-white border border-gray-300 rounded mr-2"></div>
+              <span>Available</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-red-100 border border-red-300 rounded mr-2"></div>
+              <span>Booked</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded mr-2"></div>
+              <span>Unavailable</span>
+            </div>
+            <div className="flex items-center">
+              <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
+              <span>Selected</span>
             </div>
           </div>
-        )}
+
+          {[...new Set(timeSlots.map(slot => new Date(slot.date).toDateString()))].map(dateStr => (
+            <div key={dateStr} className="border rounded-lg p-4">
+              <h3 className="text-lg font-medium text-gray-800 mb-3">
+                {new Date(dateStr).toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {timeSlots
+                  .filter(slot => new Date(slot.date).toDateString() === dateStr)
+                  .sort((a, b) => a.startTime.localeCompare(b.startTime))
+                  .map(slot => {
+                    const isAvailable = !slot.isBooked && slot.isActive;
+                    const isSelected = selectedTimeSlot?.id === slot.id;
+                    const isBooked = slot.isBooked;
+                    
+                    return (
+                      <button
+                        key={slot.id}
+                        onClick={() => {
+                          if (isAvailable) {
+                            setSelectedTimeSlot(slot);
+                          }
+                        }}
+                        disabled={!isAvailable}
+                        className={`p-3 rounded-lg text-sm font-medium transition-all duration-200 relative ${
+                          isBooked
+                            ? 'bg-red-100 text-red-700 border border-red-300 cursor-not-allowed'
+                            : !slot.isActive
+                            ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed'
+                            : isSelected
+                            ? 'bg-blue-500 text-white shadow-md'
+                            : 'bg-white text-gray-700 border border-gray-300 hover:bg-blue-50 hover:border-blue-300'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span>{slot.startTime} - {slot.endTime}</span>
+                          {isBooked && (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          )}
+                        </div>
+                        {isBooked && (
+                          <div className="text-xs mt-1 font-semibold">BOOKED</div>
+                        )}
+                        {!slot.isActive && !slot.isBooked && (
+                          <div className="text-xs mt-1">Unavailable</div>
+                        )}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {timeSlots.length > 0 && (
+        <div className="mt-6 flex justify-end space-x-3">
+          <button
+            onClick={() => {
+              setIsBookingModalOpen(false);
+              setSelectedTimeSlot(null);
+            }}
+            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirmBooking}
+            disabled={!selectedTimeSlot}
+            className={`px-4 py-2 rounded-lg font-medium ${
+              selectedTimeSlot
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            Confirm Booking
+          </button>
+        </div>
+      )}
+    </div>
+  </div>
+)}
       </div>
       
       <ToastContainer />

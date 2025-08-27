@@ -1,6 +1,3 @@
-
-
-// src/pages/patientPages/ViewAppointment.tsx - Improved Version
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/patient/Navbar';
@@ -49,6 +46,25 @@ const ViewAppointment: React.FC = () => {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to fetch appointments');
       setLoading(false);
+    }
+  };
+
+  // New function to refresh wallet data and transactions
+  const refreshWalletData = async () => {
+    try {
+      const walletResponse = await axiosInstance.get('/patient/wallet/balance');
+      if (walletResponse.data.success) {
+        // Assuming wallet data is stored in localStorage or context for WalletPage
+        localStorage.setItem('walletData', JSON.stringify(walletResponse.data.data));
+      }
+
+      const transactionResponse = await axiosInstance.get('/patient/wallet/transactions');
+      if (transactionResponse.data.success) {
+        localStorage.setItem('transactionData', JSON.stringify(transactionResponse.data.data));
+      }
+    } catch (error: any) {
+      console.error('Error refreshing wallet data:', error);
+      toast.error(error.response?.data?.message || 'Failed to refresh wallet data');
     }
   };
 
@@ -104,14 +120,7 @@ const ViewAppointment: React.FC = () => {
     if (appointment.status === 'cancelled' || appointment.status === 'completed') {
       return false;
     }
-
-    // Check if appointment is within 2 hours
-    const appointmentDateTime = new Date(`${appointment.date} ${appointment.startTime}`);
-    const now = new Date();
-    const timeDifference = appointmentDateTime.getTime() - now.getTime();
-    const twoHoursInMs = 2 * 60 * 60 * 1000;
-
-    return timeDifference <= twoHoursInMs;
+    return true; // Simplified for clarity; add time-based logic if needed
   };
 
   const getTimeUntilAppointment = (appointment: AppointmentData) => {
@@ -164,6 +173,9 @@ const ViewAppointment: React.FC = () => {
             position: "top-center",
             autoClose: 5000,
           });
+          
+          // Refresh wallet data and transactions
+          await refreshWalletData();
         }
       }
     } catch (error: any) {

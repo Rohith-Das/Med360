@@ -19,11 +19,15 @@ interface WalletPaymentRequest {
 @injectable()
 export class WalletPaymentUC {
   constructor(
+    @inject('IWalletRepository')
     private walletRepository: IWalletRepository,
+
     @inject('IPaymentRepository')
     private paymentRepository: IPaymentRepository,
+
     @inject('IAppointmentRepository')
     private appointmentRepository: IAppointmentRepository,
+
     private createAppointmentUC: CreateAppointmentUC
   ) {}
 
@@ -49,7 +53,7 @@ export class WalletPaymentUC {
         throw new Error(`Insufficient wallet balance. Available: ₹${wallet.balance}, Required: ₹${consultationFee}`);
       }
 
-      // Create appointment first
+      // Create appointment with wallet payment method (this will mark slot as booked immediately)
       const appointment = await this.createAppointmentUC.execute({
         patientId,
         doctorId: request.doctorId,
@@ -58,7 +62,8 @@ export class WalletPaymentUC {
         date: request.date,
         startTime: request.startTime,
         endTime: request.endTime,
-        consultationFee
+        consultationFee,
+        paymentMethod: 'wallet' // This ensures immediate booking
       });
 
       // Deduct amount from wallet
@@ -69,10 +74,12 @@ export class WalletPaymentUC {
       );
 
       if (!updatedWallet) {
+        // Rollback appointment if wallet update fails
+        await this.appointmentRepository.delete(appointment.id);
         throw new Error('Failed to deduct amount from wallet');
       }
 
-      // Create wallet transaction record
+      // Add wallet transaction
       await this.walletRepository.addTransaction({
         walletId: wallet.id,
         patientId,
@@ -96,12 +103,6 @@ export class WalletPaymentUC {
         paymentMethod: 'wallet'
       });
 
-      // Update appointment payment status
-      await this.appointmentRepository.update(appointment.id, {
-        status: 'confirmed',
-        paymentStatus: 'paid'
-      });
-
       return {
         appointment,
         payment,
@@ -109,6 +110,7 @@ export class WalletPaymentUC {
       };
 
     } catch (error: any) {
+      console.error('Wallet payment error:', error);
       throw new Error(error.message || 'Wallet payment failed');
     }
   }

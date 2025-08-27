@@ -30,7 +30,6 @@ export class GetWalletBalanceUC {
   }
 }
 
-// src/application/wallet/GetTransactionHistoryUC.ts
 @injectable()
 export class GetTransactionHistoryUC {
   constructor(

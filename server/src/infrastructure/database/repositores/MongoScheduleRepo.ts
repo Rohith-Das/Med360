@@ -110,20 +110,62 @@ export class MongoScheduleRepository implements IScheduleRepository {
     };
   }
 
-  async updateTimeSlot(scheduleId: string, timeSlotId: string, updates: Partial<TimeSlot>): Promise<Schedule | null> {
-    const updated = await ScheduleModel.findOneAndUpdate(
-      { _id: scheduleId, 'timeSlots._id': timeSlotId },
-      { $set: Object.keys(updates).reduce((acc, key) => {
-          acc[`timeSlots.$.${key}`] = updates[key as keyof TimeSlot];
-          return acc;
-        }, {} as any) },
-      { new: true }
-    );
-    if (!updated) return null;
-    return {
-      id: updated._id.toString(),
-      ...updated.toObject(),
-    };
+  // async updateTimeSlot(scheduleId: string, timeSlotId: string, updates: Partial<TimeSlot>): Promise<Schedule | null> {
+  //   const updated = await ScheduleModel.findOneAndUpdate(
+  //     { _id: scheduleId, 'timeSlots._id': timeSlotId },
+  //     { $set: Object.keys(updates).reduce((acc, key) => {
+  //         acc[`timeSlots.$.${key}`] = updates[key as keyof TimeSlot];
+  //         return acc;
+  //       }, {} as any) },
+  //     { new: true }
+  //   );
+  //   if (!updated) return null;
+  //   return {
+  //     id: updated._id.toString(),
+  //     ...updated.toObject(),
+  //   };
+  // }
+    async updateTimeSlot(
+    scheduleId: string, 
+    timeSlotId: string, 
+    updates: Partial<{
+      isBooked: boolean;
+      isActive: boolean;
+      startTime: string;
+      endTime: string;
+      patientId: string | null;
+    }>
+  ): Promise<Schedule | null> {
+    try {
+      const updateObject: any = {};
+      
+      // Build the update object for nested fields
+      Object.keys(updates).forEach(key => {
+        updateObject[`timeSlots.$.${key}`] = updates[key as keyof typeof updates];
+      });
+
+      // If patientId is being set, convert to ObjectId
+      if (updates.patientId) {
+        updateObject['timeSlots.$.patientId'] = new mongoose.Types.ObjectId(updates.patientId);
+      }
+
+      const updatedSchedule = await ScheduleModel.findOneAndUpdate(
+        { 
+          _id: scheduleId, 
+          'timeSlots._id': timeSlotId 
+        },
+        { $set: updateObject },
+        { 
+          new: true,
+          runValidators: true 
+        }
+      ).populate('timeSlots.patientId', 'name email');
+
+      return updatedSchedule;
+    } catch (error: any) {
+      console.error('Update time slot error:', error);
+      throw new Error(`Failed to update time slot: ${error.message}`);
+    }
   }
 
   async deleteTimeSlot(scheduleId: string, timeSlotId: string): Promise<Schedule | null> {

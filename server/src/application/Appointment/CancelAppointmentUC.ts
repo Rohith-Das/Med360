@@ -21,7 +21,7 @@ export class CancelAppointmentUC {
     appointmentId: string,
     patientId: string,
     reason?: string
-  ): Promise<{ success: boolean; refunded: boolean; message: string }> {
+  ): Promise<{ success: boolean; refunded: boolean; refundAmount?: number; message: string }> {
     try {
       // 1. Find the appointment
       const appointment = await this.appointmentRepository.findById(appointmentId);
@@ -49,10 +49,6 @@ export class CancelAppointmentUC {
       const timeDifference = appointmentDateTime.getTime() - now.getTime();
       const twoHoursInMs = 2 * 60 * 60 * 1000;
 
-      // ❌ Block cancellation if within 2 hours
-      if (timeDifference <= twoHoursInMs) {
-        throw new Error('Cannot cancel the appointment within 2 hours of the scheduled time');
-      }
 
       // 5. Update appointment status to cancelled
       const updatedAppointment = await this.appointmentRepository.update(appointmentId, {
@@ -65,6 +61,7 @@ export class CancelAppointmentUC {
       }
 
       let refunded = false;
+      let refundAmount = 0;
       let refundMessage = '';
 
       // 6. Handle refund if appointment was paid
@@ -72,6 +69,8 @@ export class CancelAppointmentUC {
         const payment = await this.paymentRepository.findByAppointmentId(appointmentId);
 
         if (payment) {
+          refundAmount = payment.amount;
+          
           // Update payment status
           await this.paymentRepository.update(payment.id, {
             status: 'refunded',
@@ -82,7 +81,10 @@ export class CancelAppointmentUC {
           // Add refund to wallet
           const wallet = await this.walletRepository.findByPatientId(patientId);
           if (wallet) {
+            // ✅ Add credit transaction to wallet
             await this.walletRepository.updateBalance(wallet.id, payment.amount, 'credit');
+            
+            // ✅ Add transaction record
             await this.walletRepository.addTransaction({
               walletId: wallet.id,
               patientId,
@@ -93,6 +95,11 @@ export class CancelAppointmentUC {
               referenceType: 'appointment_refund',
               status: 'completed'
             });
+
+            console.log(`Refund processed: ₹${payment.amount} credited to wallet for patient ${patientId}`);
+          } else {
+            console.error('Wallet not found for patient:', patientId);
+            throw new Error('Wallet not found. Please contact support.');
           }
 
           // Update appointment payment status
@@ -104,15 +111,17 @@ export class CancelAppointmentUC {
           refundMessage = ` Refund of ₹${payment.amount} has been credited to your wallet.`;
         }
       }
-
-      // 7. Return success
+console.log('refunded amount',refundAmount)
+      // 7. Return success with refund amount
       return {
         success: true,
         refunded,
+        refundAmount, // ✅ Include refund amount in response
         message: `Appointment cancelled successfully.${refundMessage}`
       };
 
     } catch (error: any) {
+      console.error('Cancel appointment error:', error);
       throw new Error(error.message || 'Failed to cancel appointment');
     }
   }

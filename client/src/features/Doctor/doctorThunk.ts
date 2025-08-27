@@ -30,6 +30,8 @@ export const getDoctorSchedules = createAsyncThunk(
     try {
       const res = await axiosInstance.get(`/schedules/doctor/${doctorId}`);
       const schedules = res.data.data || [];
+      
+      // Get all time slots (both available and booked)
       const allTimeSlots = schedules.flatMap((sh: any) =>
         sh.timeSlots?.map((slot: any) => ({
           id: slot._id || slot.id,
@@ -40,7 +42,8 @@ export const getDoctorSchedules = createAsyncThunk(
           isActive: slot.isActive !== false,
           scheduleId: sh._id.toString()
         })) || []
-      ).filter((slot: any) => slot.isActive);
+      ).filter((slot: any) => slot.isActive); // Only show active slots
+      
       return allTimeSlots;
     } catch (error: any) {
       console.error('Get doctor schedules error:', error);

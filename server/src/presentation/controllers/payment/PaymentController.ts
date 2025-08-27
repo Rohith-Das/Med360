@@ -36,6 +36,7 @@ export class PaymentController {
         startTime: bookingData.timeSlot.startTime,
         endTime: bookingData.timeSlot.endTime,
         consultationFee: bookingData.doctor.consultationFee,
+        paymentMethod: 'stripe',
       });
 
       // Create payment intent
