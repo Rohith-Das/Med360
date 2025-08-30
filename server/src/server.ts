@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import { createServer } from "http";
 import { mongoDBClient } from "./infrastructure/database/mongoDB/mongoDBClient";
 import PatientRouter from "./presentation/routes/patientRoutes";
 import "./infrastructure/config/container";
@@ -18,6 +19,8 @@ export const startServer = async () => {
   dotenv.config();
 
   const app = express();
+  const httpServer=createServer(app)
+  // const socketServer=initializeSocketServer(httpServer)
   app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true, 
@@ -47,7 +50,7 @@ app.use("/api/payment", PaymentRouter);
   await dbClient.connect();
 app.use(express.static(path.join(__dirname, '../../client/build')));
 
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
   });
 };
