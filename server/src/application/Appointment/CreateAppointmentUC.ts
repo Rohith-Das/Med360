@@ -59,12 +59,16 @@ export class CreateAppointmentUC {
         paymentStatus: input.paymentMethod === 'wallet' ? 'paid' : 'pending',
         consultationFee: input.consultationFee,
       });
-      if (input.paymentMethod === 'wallet') {
+      // if (input.paymentMethod === 'wallet') {
+      //   await this.scheduleRepo.updateTimeSlot(input.scheduleId, input.timeSlotId, {
+      //     isBooked: true,
+      //     patientId: input.patientId
+      //   });
+      // }
         await this.scheduleRepo.updateTimeSlot(input.scheduleId, input.timeSlotId, {
-          isBooked: true,
-          patientId: input.patientId
-        });
-      }
+        isBooked: true,
+        patientId: input.patientId,
+      });
 
       return appointment;
     } catch (error: any) {
