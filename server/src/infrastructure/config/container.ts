@@ -71,6 +71,16 @@ import { MongoWalletRepo } from "../database/repositores/MongoWalletRepo";
 import { CancelAppointmentUC } from "../../application/Appointment/CancelAppointmentUC";
 import { WalletPaymentUC } from "../../application/payment/WalletPaymentUC";
 import { GetTransactionHistoryUC, GetWalletBalanceUC } from "../../application/payment/GetWalletBalanceUC";
+import { INotificationRepository } from "../../domain/repositories/NotificationRepository";
+import { MongoNotificationRepository } from "../database/repositores/MongoNotificationRepository";
+import { CreateNotificationUC } from "../../application/notification/CreateNotificationUC";
+import { MarkAllNotificationsReadUC } from "../../application/notification/MarkAllNotificationsReadUC";
+import { MarkNotificationReadUC } from "../../application/notification/MarkNotificationReadUC";
+import { NotificationService } from "../../application/notification/NotificationService";
+import { GetNotificationsUC } from "../../application/notification/GetNotificationsUC";
+import { AIService } from "../../application/service/AIService";
+import { GeminiService } from "../services/GeminiService";
+import { ChatBotUC } from "../../application/ai/chatbotUseCase";
 
 
 // Database
@@ -86,11 +96,12 @@ container.register<IScheduleRepository>('IScheduleRepository',MongoScheduleRepos
 container.register<IPaymentRepository>('IPaymentRepository', MongoPaymentRepository);
 container.register<IAppointmentRepository>('IAppointmentRepository', MongoAppointmentRepo);
 container.register<IWalletRepository>('IWalletRepository', MongoWalletRepo);
+container.register<INotificationRepository>('INotificationRepository', MongoNotificationRepository);
 
 // Services
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
-
+container.register<AIService>("AIService",{useClass:GeminiService})
 container.register<AuthService>("AuthService", { useClass: JwtAuthService });
 container.register<HashService>("HashService", { useClass: BcryptHashService });
 // Use Cases
@@ -151,5 +162,13 @@ container.registerSingleton(CancelAppointmentUC);
 container.registerSingleton(WalletPaymentUC);
 container.registerSingleton(GetWalletBalanceUC);
 container.registerSingleton(GetTransactionHistoryUC);
+
+
+container.registerSingleton(CreateNotificationUC);
+container.registerSingleton(GetNotificationsUC);
+container.registerSingleton(MarkNotificationReadUC);
+container.registerSingleton(MarkAllNotificationsReadUC);
+container.registerSingleton(NotificationService);
+container.registerSingleton(ChatBotUC);
 
 export {container}

@@ -8,7 +8,7 @@ import { persistor, store } from './app/store';
 import { PersistGate } from "redux-persist/integration/react";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { StripeProvider } from './components/providers/StripeProvider';
-
+import { SocketProvider } from './components/providers/SocketProvider';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -16,9 +16,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <PersistGate loading={null} persistor={persistor}>
 <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID || ""}>
    <StripeProvider>
+    <SocketProvider>
+
         <BrowserRouter>
           <App />
         </BrowserRouter>
+          </SocketProvider>
         </StripeProvider>
       </GoogleOAuthProvider>
       </PersistGate>

@@ -14,6 +14,9 @@ import { upload } from '../../infrastructure/config/multerConfig'
 import { uploadProfilePicture,removeProfilePicture } from '../controllers/patient/Profile/profileController'
 import { AppointmentController } from '../controllers/Appointment/AppointmentController'
 import { WalletController } from '../controllers/wallet/WalletController'
+import { chatbotController } from '../controllers/patient/AIChatbot/chatbotController'
+
+
 const PatientRouter=express.Router()
 const appointmentController=new AppointmentController()
 const walletController = new WalletController()
@@ -38,6 +41,5 @@ PatientRouter.put('/appointments/:appointmentId/cancel', authGuard, appointmentC
 // Wallet routes
 PatientRouter.get('/wallet/balance', authGuard, walletController.getWalletBalance)
 PatientRouter.get('/wallet/transactions', authGuard, walletController.getTransactionHistory)
-
-
+PatientRouter.post('/chatbot',authGuard,chatbotController)
 export default PatientRouter;

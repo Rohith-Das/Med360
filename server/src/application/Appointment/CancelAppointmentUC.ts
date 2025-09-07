@@ -3,6 +3,7 @@ import { inject, injectable } from 'tsyringe';
 import { IAppointmentRepository } from '../../domain/repositories/AppointmentRepository';
 import { IPaymentRepository } from '../../domain/repositories/Paymentrepository';
 import { IWalletRepository } from '../../domain/repositories/WalletRepository';
+import { NotificationService } from '../notification/NotificationService';
 
 @injectable()
 export class CancelAppointmentUC {
@@ -14,7 +15,8 @@ export class CancelAppointmentUC {
     private paymentRepository: IPaymentRepository,
 
     @inject('IWalletRepository')
-    private walletRepository: IWalletRepository
+    private walletRepository: IWalletRepository,
+    private notificationService:NotificationService
   ) {}
 
   async execute(
@@ -113,6 +115,17 @@ export class CancelAppointmentUC {
       }
 console.log('refunded amount',refundAmount)
       // 7. Return success with refund amount
+      await this.notificationService.sendAppointmentCancelledNotification({
+        appointmentId,
+        patientId,
+        doctorId:appointment.doctorId.toString(),
+        appointmentData:appointment.date.toISOString().split('T')[0],
+        consultingFee:appointment.consultationFee,
+        type:'cancelled',
+        cancelReason:reason,
+        refundAmount:refunded?refundAmount:undefined,
+        appointmentTime:`${appointment.startTime}-${appointment.endTime}`
+      })
       return {
         success: true,
         refunded,

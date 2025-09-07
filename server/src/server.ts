@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+ dotenv.config();
 import { createServer } from "http";
 import { mongoDBClient } from "./infrastructure/database/mongoDB/mongoDBClient";
 import PatientRouter from "./presentation/routes/patientRoutes";
@@ -14,13 +15,14 @@ import AppRouter from "./presentation/routes/ApplicationRoutes";
 import DoctorRouter from "./presentation/routes/DoctorRoutes";
 import ScheduleRouter from "./presentation/routes/ScheduleRoutes";
 import PaymentRouter from "./presentation/routes/PaymentRoutes";
+import { initializeSocketServer } from "./infrastructure/socket/socketServer";
 
 export const startServer = async () => {
-  dotenv.config();
+ 
 
   const app = express();
   const httpServer=createServer(app)
-  // const socketServer=initializeSocketServer(httpServer)
+  const socketServer=initializeSocketServer(httpServer)
   app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true, 

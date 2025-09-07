@@ -13,7 +13,8 @@ export const authGuard = (req: AuthRequest, res: Response, next: NextFunction) =
 
     const authService = container.resolve<AuthService>("AuthService");
     const payload = authService.verifyAccessToken(token);
-
+    console.log('paload from authGuard middlware',payload);
+    
     req.user = payload;
     next();
   } catch {

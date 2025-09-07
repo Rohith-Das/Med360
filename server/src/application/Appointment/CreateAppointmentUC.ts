@@ -1,8 +1,9 @@
-// src/application/Appointment/CreateAppointmentUC.ts
+
 import { inject, injectable } from 'tsyringe';
 import { IAppointmentRepository } from '../../domain/repositories/AppointmentRepository';
 import { Appointment } from '../../domain/entities/Appointment.entiry';
 import { IScheduleRepository } from '../../domain/repositories/ScheduleRepository-method';
+import { NotificationService } from '../notification/NotificationService';
 
 interface CreateAppointmentInput {
   patientId: string;
@@ -20,7 +21,8 @@ interface CreateAppointmentInput {
 export class CreateAppointmentUC {
   constructor(
     @inject('IAppointmentRepository') private appointmentRepo: IAppointmentRepository,
-     @inject('IScheduleRepository') private scheduleRepo: IScheduleRepository
+     @inject('IScheduleRepository') private scheduleRepo: IScheduleRepository,
+     private notificationService:NotificationService
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<Appointment> {
@@ -69,6 +71,16 @@ export class CreateAppointmentUC {
         isBooked: true,
         patientId: input.patientId,
       });
+      await this.notificationService.sendAppointmentBookedNotification({
+        appointmentId:appointment.id!,
+        patientId:input.patientId,
+        doctorId:input.doctorId,
+        appointmentData:input.date.toISOString().split('T')[0],
+        appointmentTime:`${input.startTime}-${input.endTime}`,
+        consultingFee:input.consultationFee,
+        type:'booked'
+      })
+console.log(`Appointment created and notificaiton sent :${appointment.id}`);
 
       return appointment;
     } catch (error: any) {

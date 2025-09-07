@@ -6,6 +6,7 @@ import HomeBanner from '../../components/patient/HomeBanner'
 import SpecializationCard from '@/components/patient/specializations/SpecializationCard'
 import DoctorsCards from '@/components/patient/DoctorsCards'
 import BookingSteps from '@/components/patient/BookingSteps'
+import Chatbot from '@/components/patient/Chatbot'
 
 
 function Home() {
@@ -23,6 +24,12 @@ function Home() {
     <BookingSteps/>
     <SpecializationCard/>
     <DoctorsCards/>
+     <Chatbot
+        position="bottom-right"
+        initialMessage="Welcome to our medical portal! How can I assist you today?"
+        botName="Health Assistant"
+      />
+   
 
   </div>
 </div>

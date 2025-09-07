@@ -5,6 +5,8 @@ import doctorAuthReducer from '../features/auth/doctorAuthSlice';
 import doctorsReducer from '../features/Doctor/doctorSlice';
 import adminDoctorsReducer from '../features/admin/DoctorMgtSlice'
 
+import notificationReducer from '../features/notification/notificationSlice';
+
 import {
   persistStore,
   persistReducer,
@@ -28,6 +30,7 @@ const rootReducer=combineReducers({
        doctorAuth: doctorAuthReducer,
        doctors:doctorsReducer,
        adminDoctors: adminDoctorsReducer,
+       notifications: notificationReducer,
        
          
 })
