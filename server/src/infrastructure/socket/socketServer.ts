@@ -83,6 +83,32 @@ export class SocketServer{
         socket.on('mark_all_notifications_read',(data:{userId:string})=>{
             socket.emit('all_notifications_read_confirmed',data)
         })
+        //video call events
+        socket.on('video:join-room',(roomId:string)=>{
+          socket.join(roomId);
+           console.log(`📹 ${socket.userName} joined video room ${roomId}`);
+           socket.to(roomId).emit('video:user-joined',{
+            userId:socket.userId,
+            userName:socket.userName,
+            socketId:socket.id,
+           })
+        })
+         socket.on('video:signal', ({ roomId, data }) => {
+      console.log(`📶 Signal from ${socket.userName} → room ${roomId}`);
+      socket.to(roomId).emit('video:signal', {
+        userId: socket.userId,
+        socketId: socket.id,
+        data,
+      });
+    });
+        socket.on('video:leave-room',(roomId:string)=>{
+          socket.leave(roomId);
+           console.log(`🚪 ${socket.userName} left video room ${roomId}`);  
+           socket.to(roomId).emit('video:user-left',{
+            userId:socket.userId,
+            userName:socket.userName,
+           })
+        })
         
     })
   }
