@@ -3,6 +3,8 @@ import { Server as HttpServer } from "http";
 import { container } from "tsyringe";
 import { AuthService } from "../../application/service/AuthService";
 import { TokenPayload } from "../../shared/AuthType";
+import { any, size, string } from "zod";
+import { off } from "process";
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -14,6 +16,7 @@ export class SocketServer{
     private io:Server;
     private connectedUsers = new Map<string, string>(); 
   private doctorSockets = new Map<string, string>();
+  private activeVideoRooms=new Map<string,Set<string>>()
 
   constructor(httpServer:HttpServer){
     this.io=new Server(httpServer,{
@@ -75,6 +78,20 @@ export class SocketServer{
             if(socket.userId){
                 this.connectedUsers.delete(socket.userId)
                 this.doctorSockets.delete(socket.userId)
+
+                this.activeVideoRooms.forEach((participants,roomId)=>{
+                  if(participants.has(socket.id)){
+                    participants.delete(socket.id);
+                    socket.to(roomId).emit('video:paticipant-left',{
+                      userId:socket.userId,
+                      userName:socket.userName,
+                      socketId:socket.id,
+                    })
+                    if(participants.size==0){
+                      this.activeVideoRooms.delete(roomId)
+                    }
+                  }
+                })
             }
         })
         socket.on('mark_notification_read',(data:{notificationId:string})=>{
@@ -84,31 +101,147 @@ export class SocketServer{
             socket.emit('all_notifications_read_confirmed',data)
         })
         //video call events
-        socket.on('video:join-room',(roomId:string)=>{
-          socket.join(roomId);
-           console.log(`📹 ${socket.userName} joined video room ${roomId}`);
-           socket.to(roomId).emit('video:user-joined',{
-            userId:socket.userId,
-            userName:socket.userName,
-            socketId:socket.id,
-           })
+      //join video call room
+      socket.on('video:join-room',(data:{roomId:string,appointmentId?:string})=>{
+        const {roomId,appointmentId}=data;
+        socket.join(roomId)
+        console.log(` ${socket.userName} joined video room ${roomId}`);
+        if(!this.activeVideoRooms.has(roomId)){
+          this.activeVideoRooms.set(roomId,new Set())
+        }
+        this.activeVideoRooms.get(roomId)!.add(socket.id)
+        const participantsCount=this.activeVideoRooms.get(roomId)!.size;
+
+        //notify existing participants
+        socket.to(roomId).emit('video:participant-joined',{
+          userId:socket.userId,
+            userName: socket.userName,
+            userRole: socket.userRole,
+            socketId: socket.id,
+            participantsCount
         })
-         socket.on('video:signal', ({ roomId, data }) => {
-      console.log(`📶 Signal from ${socket.userName} → room ${roomId}`);
-      socket.to(roomId).emit('video:signal', {
-        userId: socket.userId,
-        socketId: socket.id,
-        data,
-      });
-    });
-        socket.on('video:leave-room',(roomId:string)=>{
-          socket.leave(roomId);
-           console.log(`🚪 ${socket.userName} left video room ${roomId}`);  
-           socket.to(roomId).emit('video:user-left',{
-            userId:socket.userId,
-            userName:socket.userName,
-           })
+         const roomParticipants = Array.from(this.activeVideoRooms.get(roomId)!)
+            .filter(id => id !== socket.id)
+            .map(id => {
+              const participant = Array.from(this.connectedUsers.entries())
+                .find(([userId, socketId]) => socketId === id);
+              return participant ? { userId: participant[0], socketId: id } : null;
+            })
+            .filter(Boolean);
+          
+          socket.emit('video:room-participants', {
+            roomId,
+            participants: roomParticipants,
+            participantsCount
+          });
+        
+      })
+      socket.on('video:offer',(data:{roomId:string,offer:any,targetSocketId?:string})=>{
+        const{roomId,offer,targetSocketId}=data;
+         console.log(` Offer from ${socket.userName} in room ${roomId}`);
+        if(targetSocketId){
+          socket.to(targetSocketId).emit('video:offer',{
+            offer,
+            fromSocketId:socket.id,
+            fromUserId:socket.userId,
+            fromUserName:socket.userName,
+            fromUserRole:socket.userRole
+          })
+        }else{
+          socket.to(roomId).emit('video:offer',{
+            offer,
+              fromSocketId: socket.id,
+              fromUserId: socket.userId,
+              fromUserName: socket.userName,
+              fromUserRole: socket.userRole
+          })
+        }
+      })
+      // webrtc signaling-ans
+      socket.on('video:answer',(data:{roomId:string,answer:any,targetSocketId:string})=>{
+        const{roomId,answer,targetSocketId}=data
+        console.log(` Answer from ${socket.userName} in room ${roomId}`);
+        socket.to(targetSocketId).emit('video:answer',{
+          answer,
+          fromSocketId: socket.id,
+            fromUserId: socket.userId,
+            fromUserName: socket.userName,
+            fromUserRole: socket.userRole
         })
+      })
+      socket.on('video:ice-candidate',(data:{roomId:string,candidate:any,targetSocketId:string})=>{
+        const {roomId,candidate,targetSocketId}=data;
+        if(targetSocketId){
+          socket.to(targetSocketId).emit('video:ice-candidate',{
+            candidate,
+            fromSocketId: socket.id,
+            fromUserId: socket.userId
+          })
+        }else{
+          socket.to(roomId).emit('video:ice-candidate', {
+              candidate,
+              fromSocketId: socket.id,
+              fromUserId: socket.userId
+            });
+        }
+      })
+      socket.on('video:leave-room',(data:{roomId:string})=>{
+        const {roomId}=data;
+        socket.leave(roomId)
+         console.log(` ${socket.userName} left video room ${roomId}`);
+         if(this.activeVideoRooms.has(roomId)){
+          this.activeVideoRooms.get(roomId)!.delete(socket.id);
+          if(this.activeVideoRooms.get(roomId)!.size==0){
+            this.activeVideoRooms.delete(roomId)
+          }
+         }
+         socket.to(roomId).emit('video:participant-left',{
+          userId:socket.userId,
+          userName:socket.userName,
+          socketId:socket.id,
+          participantsCount:this.activeVideoRooms.get(roomId)?.size || 0
+         })
+      })
+      //mute audio
+      socket.on('video:toggle-audio',(data:{roomId:string,isMuted:boolean})=>{
+        const{roomId,isMuted}=data;
+        socket.to(roomId).emit('video:participant-audio-toggle',{
+          userId:socket.userId,
+          userName:socket.userName,
+          isMuted
+        })
+      })
+      //enable or disable video
+      socket.on('video:toggle-video',(data:{roomId:string,isVideoOff:boolean})=>{
+        const{roomId,isVideoOff}=data;
+        socket.to(roomId).emit('video:participant-video-toggle',{
+          userId:socket.userId,
+          userName:socket.userName,
+          isVideoOff
+        })
+      })
+       // Screen sharing
+        socket.on('video:start-screen-share', (data: { roomId: string }) => {
+          const { roomId } = data;
+          socket.to(roomId).emit('video:participant-screen-share-started', {
+            userId: socket.userId,
+            userName: socket.userName,
+            socketId: socket.id
+          });
+        });
+         socket.on('video:stop-screen-share', (data: { roomId: string }) => {
+          const { roomId } = data;
+          socket.to(roomId).emit('video:participant-screen-share-stopped', {
+            userId: socket.userId,
+            userName: socket.userName,
+            socketId: socket.id
+          });
+        });
+
+         socket.on('video:connection-quality', (data: { roomId: string, quality: 'poor' | 'fair' | 'good' | 'excellent' }) => {
+          const { roomId, quality } = data;
+          console.log(`Connection quality for ${socket.userName} in ${roomId}: ${quality}`);
+        });
         
     })
   }
@@ -145,6 +278,17 @@ export class SocketServer{
   }
   public getIO():Server{
     return this.io
+  }
+   public getActiveVideoRooms(): Map<string, Set<string>> {
+    return this.activeVideoRooms;
+  }
+
+  public getRoomParticipantsCount(roomId: string): number {
+    return this.activeVideoRooms.get(roomId)?.size || 0;
+  }
+
+  public isRoomActive(roomId: string): boolean {
+    return this.activeVideoRooms.has(roomId) && this.activeVideoRooms.get(roomId)!.size > 0;
   }
  
 }
