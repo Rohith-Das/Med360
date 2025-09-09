@@ -4,11 +4,13 @@ import { adminAuthGuard } from '../middlewares/authAdminMiddleware'
 import { getDoctorProfileController } from '../controllers/doctorsControllers/DoctorProfileController'
 import { doctorAuthGuard } from '../middlewares/DoctorAuthGuard'
 import { NotificationController } from '../controllers/notification/NotificationController'
-
+import { DoctorAppointmentController } from '../controllers/Appointment/DoctorAppointmentController'
 
 const DoctorRouter=express.Router()
 const doctorController=new DoctorController()
 const notificationController = new NotificationController();
+const doctorAppointmentController = new DoctorAppointmentController();
+
 DoctorRouter.post('/login',doctorController.login)
 DoctorRouter.post('/refresh-token', doctorController.refreshToken);
 DoctorRouter.get('/all',doctorController.getAllDoctors)
@@ -20,5 +22,14 @@ DoctorRouter.get('/profile',doctorAuthGuard,getDoctorProfileController)
 DoctorRouter.get('/',doctorAuthGuard,notificationController.getNotifications)
 DoctorRouter.get('/unread',doctorAuthGuard,notificationController.getUnreadNotifications);
 DoctorRouter.put('/:notification/read',doctorAuthGuard,notificationController.markNotificationAsRead)
-
+DoctorRouter.get(
+  '/appointments',
+  doctorAuthGuard,
+  doctorAppointmentController.getAppointment
+);
+DoctorRouter.get(
+  '/appointments/:appointmentId',
+  doctorAuthGuard,
+  doctorAppointmentController.getAppointmentByid
+);
 export default DoctorRouter

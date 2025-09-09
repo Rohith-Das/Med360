@@ -55,7 +55,7 @@ const DoctorNavbar = () => {
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: <MdDashboard className="text-lg" /> },
     { name: 'Schedules', path: '/doctor/time-slots', icon: <FaCalendarAlt className="text-lg" /> },
-    { name: 'Appointments', path: '#', icon: <FaCalendarAlt className="text-lg" /> },
+    { name: 'Appointments', path: '/doctor/appointments', icon: <FaCalendarAlt className="text-lg" /> },
     { name: 'Chat', path: 'chat', icon: <FaComments className="text-lg" /> },
     { name: 'Profile', path: 'profile', icon: <FaUserCircle className="text-lg" /> },
   ];

@@ -5,11 +5,8 @@ import { AuthRequest } from "../../middlewares/AuthRequest";
 import { success } from "zod";
 import { CancelAppointmentUC } from "../../../application/Appointment/CancelAppointmentUC";
 
-
-
 export class AppointmentController{
     async getAppointments(req:AuthRequest,res:Response):Promise<Response>{
-
         try {
             const patientId=req.user?.userId;
             console.log(patientId)

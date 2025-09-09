@@ -81,6 +81,8 @@ import { GetNotificationsUC } from "../../application/notification/GetNotificati
 import { AIService } from "../../application/service/AIService";
 import { GeminiService } from "../services/GeminiService";
 import { ChatBotUC } from "../../application/ai/chatbotUseCase";
+import { VideoCallUseCase } from "../../application/videoCall/VideoCallUC";
+import { GetDoctorAppointmentUC } from "../../application/Appointment/GetDoctorsAppointmentUC";
 
 
 // Database
@@ -162,7 +164,7 @@ container.registerSingleton(CancelAppointmentUC);
 container.registerSingleton(WalletPaymentUC);
 container.registerSingleton(GetWalletBalanceUC);
 container.registerSingleton(GetTransactionHistoryUC);
-
+container.registerSingleton(GetDoctorAppointmentUC)
 
 container.registerSingleton(CreateNotificationUC);
 container.registerSingleton(GetNotificationsUC);
@@ -170,5 +172,9 @@ container.registerSingleton(MarkNotificationReadUC);
 container.registerSingleton(MarkAllNotificationsReadUC);
 container.registerSingleton(NotificationService);
 container.registerSingleton(ChatBotUC);
+
+
+container.registerSingleton(VideoCallUseCase);
+
 
 export {container}
