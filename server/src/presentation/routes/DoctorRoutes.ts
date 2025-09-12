@@ -5,6 +5,8 @@ import { getDoctorProfileController } from '../controllers/doctorsControllers/Do
 import { doctorAuthGuard } from '../middlewares/DoctorAuthGuard'
 import { NotificationController } from '../controllers/notification/NotificationController'
 import { DoctorAppointmentController } from '../controllers/Appointment/DoctorAppointmentController'
+import VideoCallRouter from './VideoCallRoutes'
+
 
 const DoctorRouter=express.Router()
 const doctorController=new DoctorController()
@@ -32,4 +34,7 @@ DoctorRouter.get(
   doctorAuthGuard,
   doctorAppointmentController.getAppointmentByid
 );
+DoctorRouter.use('/videocall', VideoCallRouter);
+
+
 export default DoctorRouter

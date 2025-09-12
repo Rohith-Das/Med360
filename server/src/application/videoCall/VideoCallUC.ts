@@ -40,12 +40,7 @@ export class VideoCallUseCase  {
     const appointmentStart = new Date(`${appointmentDate.toDateString()} ${appointment.startTime}`);
     const appointmentEnd = new Date(`${appointmentDate.toDateString()} ${appointment.endTime}`);
     const now = new Date();
-     const earlyStart = new Date(appointmentStart.getTime() - 15 * 60 * 1000);
-    const lateEnd = new Date(appointmentEnd.getTime() + 30 * 60 * 1000);
-
-    if (now < earlyStart || now > lateEnd) {
-      throw new Error('Video call can only be started within the appointment time window');
-    }
+   
     const roomId = `appointment_${appointmentId}_${Date.now()}`;
 
     const session: VideoCallSession = {

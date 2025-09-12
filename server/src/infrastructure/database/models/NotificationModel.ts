@@ -22,7 +22,9 @@ const NotificationSchema = new Schema<Notification>(
         'appointment_rescheduled',
         'payment_received',
         'payment_refunded',
-        'system_announcement'
+        'system_announcement',
+        'video_call_initiated',
+        'video_call_ended'
       ],
       required: true
     },

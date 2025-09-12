@@ -82,7 +82,7 @@ export class SocketServer{
                 this.activeVideoRooms.forEach((participants,roomId)=>{
                   if(participants.has(socket.id)){
                     participants.delete(socket.id);
-                    socket.to(roomId).emit('video:paticipant-left',{
+                    socket.to(roomId).emit('video:participant-left',{
                       userId:socket.userId,
                       userName:socket.userName,
                       socketId:socket.id,
