@@ -16,10 +16,17 @@ export class AppointmentController{
             const getAppointments= container.resolve(GetAppointmentUC)
             const appointments=await getAppointments.execute(patientId)
 
+            const transFormedAppointments=appointments.map(apt=>({
+              ...apt,
+              doctorId:apt.doctorId?{
+                name:(apt.doctorId as any).name,
+                specialization:(apt.doctorId as any).specialization
+              }:undefined
+            }))
             return res.status(200).json({
                 success:true,
                 message:'fetch appointment',
-                data:appointments
+                data:transFormedAppointments
             })
 
         } catch (error:any) {

@@ -32,7 +32,10 @@ doctorAxiosInstance.interceptors.response.use(
           { withCredentials: true }
         );
         const newAccessToken = refreshResponse.data.data.doctorAccessToken;
-        localStorage.setItem('doctorAccessToken', newAccessToken); // Update localStorage
+        localStorage.setItem('doctorAccessToken', newAccessToken);
+
+        const {setDoctorAccessToken}=await import('../features/auth/doctorAuthSlice')
+        store.dispatch(setDoctorAccessToken(newAccessToken))
         originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
         console.log('Token refreshed successfully:', newAccessToken);
         return doctorAxiosInstance(originalRequest);

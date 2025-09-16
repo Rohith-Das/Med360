@@ -6,7 +6,7 @@ export interface Notification{
     recipientType:'doctor'|'admin'|'patient';
     senderId?:string;
      senderType?: 'patient' | 'doctor' | 'admin' ;
-      type: 'appointment_booked' | 'appointment_cancelled' | 'appointment_confirmed' | 'appointment_rescheduled' | 'payment_received' | 'payment_refunded' | 'system_announcement';
+      type: 'appointment_booked' | 'appointment_cancelled' | 'appointment_confirmed' | 'appointment_rescheduled' | 'payment_received' | 'payment_refunded' | 'system_announcement'| 'video_call_initiated' | 'video_call_ended';
   title: string;
   message: string;
   data?: {
@@ -22,6 +22,7 @@ export interface Notification{
     specialization?: string;
     consultationFee?: number;
     refundAmount?: number;
+    roomId?: string;
   };
   isRead: boolean;
   priority: 'low' | 'medium' | 'high' | 'urgent';

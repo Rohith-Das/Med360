@@ -1,4 +1,4 @@
-import { sign, verify } from "jsonwebtoken";
+import { sign, verify,TokenExpiredError } from "jsonwebtoken";
 import { injectable } from "tsyringe";
 import { TokenPayload } from "../../shared/AuthType";
 import { AuthService } from "../../application/service/AuthService";
@@ -25,7 +25,7 @@ export class JwtAuthService implements AuthService{
     }
     //patient tokens
      generateAccessToken(payload: TokenPayload): string {
-        return sign(payload, this.accessSecret, { expiresIn: "15m" });
+        return sign(payload, this.accessSecret, { expiresIn: "1h" });
     }
 
     generateRefreshToken(payload: TokenPayload): string {
@@ -41,7 +41,7 @@ export class JwtAuthService implements AuthService{
     }
     //admin tokens
     generateAdminAccessToken(payload:TokenPayload):string{
-        return sign(payload,this.adminAccessSecret,{expiresIn: "15m"})
+        return sign(payload,this.adminAccessSecret,{expiresIn: "1h"})
     }
     generateAdminRefreshToken(payload: TokenPayload): string {
     return sign(payload, this.adminRefreshSecret, { expiresIn: "7d" });
@@ -57,7 +57,7 @@ export class JwtAuthService implements AuthService{
 
   //doctor tokens
     generateDoctorAccessToken(payload: TokenPayload): string {
-    return sign(payload, this.doctorAccessSecret, { expiresIn: "15m" });
+    return sign(payload, this.doctorAccessSecret, { expiresIn: "1h" });
   }
 
   generateDoctorRefreshToken(payload: TokenPayload): string {
@@ -65,11 +65,25 @@ export class JwtAuthService implements AuthService{
   }
 
   verifyDoctorAccessToken(token: string): TokenPayload {
-    return verify(token, this.doctorAccessSecret) as TokenPayload;
+    try {
+      return verify(token, this.doctorAccessSecret) as TokenPayload;
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        throw new Error("Token expired");
+      }
+      throw new Error("Invalid token");
+    }
   }
 
-  verifyDoctorRefreshToken(token: string): TokenPayload {
-    return verify(token, this.doctorRefreshSecret) as TokenPayload;
+ verifyDoctorRefreshToken(token: string): TokenPayload {
+    try {
+      return verify(token, this.doctorRefreshSecret) as TokenPayload;
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        throw new Error("Refresh token expired");
+      }
+      throw new Error("Invalid refresh token");
+    }
   }
 }
 

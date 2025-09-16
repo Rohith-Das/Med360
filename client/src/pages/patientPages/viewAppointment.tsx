@@ -1,8 +1,12 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../../components/patient/Navbar';
 import { toast, ToastContainer } from 'react-toastify';
 import axiosInstance from '../../api/axiosInstance';
+import { Video, VideoOff, Phone, Clock, Calendar, User } from 'lucide-react';
+import VideoCall from '@/components/videoCall/VideoCall';
+import { useSocket } from '@/components/providers/SocketProvider';
 
 interface AppointmentData {
   _id: string;
@@ -24,7 +28,15 @@ interface AppointmentData {
   };
 }
 
-const ViewAppointment: React.FC = () => {
+interface VideoCallState {
+  active: boolean;
+  roomId?: string;
+  appointmentId?: string;
+  isIncoming?: boolean;
+  callerName?: string;
+}
+
+ const ViewAppointment: React.FC = () => {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<AppointmentData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,10 +44,40 @@ const ViewAppointment: React.FC = () => {
   const [showCancelDialog, setShowCancelDialog] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [videoCall, setVideoCall] = useState<VideoCallState>({ active: false });
+  const { isConnected } = useSocket();
 
   useEffect(() => {
     fetchAppointments();
   }, []);
+
+  // Listen for incoming video calls
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const handleIncomingCall = (data: any) => {
+      console.log('Incoming video call:', data);
+      toast.info(`Incoming call from Dr. ${data.initiatorName || 'Doctor'}`, {
+        position: "top-right",
+        autoClose: false,
+        onClick: () => {
+          setVideoCall({
+            active: true,
+            roomId: data.roomId,
+            appointmentId: data.appointmentId,
+            isIncoming: true,
+            callerName: `Dr. ${data.initiatorName || 'Doctor'}`
+          });
+          navigate('/video-call');
+        }
+      });
+    };
+
+    window.addEventListener('incoming_video_call', handleIncomingCall);
+    return () => {
+      window.removeEventListener('incoming_video_call', handleIncomingCall);
+    };
+  }, [isConnected, navigate]);
 
   const fetchAppointments = async () => {
     try {
@@ -49,206 +91,162 @@ const ViewAppointment: React.FC = () => {
     }
   };
 
-  // New function to refresh wallet data and transactions
   const refreshWalletData = async () => {
     try {
-      const walletResponse = await axiosInstance.get('/patient/wallet/balance');
-      if (walletResponse.data.success) {
-        // Assuming wallet data is stored in localStorage or context for WalletPage
-        localStorage.setItem('walletData', JSON.stringify(walletResponse.data.data));
-      }
-
-      const transactionResponse = await axiosInstance.get('/patient/wallet/transactions');
-      if (transactionResponse.data.success) {
-        localStorage.setItem('transactionData', JSON.stringify(transactionResponse.data.data));
-      }
-    } catch (error: any) {
-      console.error('Error refreshing wallet data:', error);
-      toast.error(error.response?.data?.message || 'Failed to refresh wallet data');
+      // Assuming there's an endpoint to refresh wallet data
+      const res = await axiosInstance.get('/patient/wallet');
+      // Update wallet in Redux or context if needed
+      console.log('Wallet refreshed:', res.data);
+    } catch (err) {
+      console.error('Error refreshing wallet:', err);
     }
   };
 
+  const isVideoCallAvailable = (appointment: AppointmentData): { available: boolean; message?: string } => {
+    if (appointment.status !== 'confirmed') {
+      return { available: false, message: 'Appointment must be confirmed' };
+    }
+    return { available: true };
+  };
+
+  const initiateVideoCall = async (appointmentId: string) => {
+    try {
+      const response = await axiosInstance.post('/videocall/initiate', {
+        appointmentId
+      });
+
+      if (response.data.success) {
+        toast.success('Video call initiated! Notification sent to doctor.');
+        setVideoCall({
+          active: true,
+          roomId: response.data.data.roomId,
+          appointmentId,
+          isIncoming: false
+        });
+        navigate('/video-call');
+      }
+    } catch (error: any) {
+      console.error('Error initiating video call:', error);
+      toast.error(error.response?.data?.message || 'Failed to initiate video call');
+    }
+  };
+
+  const handleVideoCallEnd = () => {
+    setVideoCall({ active: false });
+    fetchAppointments();
+  };
+
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric',
+      day: 'numeric'
     });
   };
 
   const formatTime = (time: string) => {
-    return new Date(`2000-01-01 ${time}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    return time; // Assuming time is in HH:MM format; adjust if needed
   };
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'pending':
-        return 'text-yellow-600 bg-yellow-100 border-yellow-200';
+    switch (status) {
       case 'confirmed':
-        return 'text-blue-600 bg-blue-100 border-blue-200';
-      case 'completed':
-        return 'text-green-600 bg-green-100 border-green-200';
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
       case 'cancelled':
-        return 'text-red-600 bg-red-100 border-red-200';
+        return 'bg-red-100 text-red-800';
       default:
-        return 'text-gray-600 bg-gray-100 border-gray-200';
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getPaymentStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'paid':
-        return 'text-green-600 bg-green-100 border-green-200';
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
       case 'pending':
-        return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      case 'failed':
-        return 'text-red-600 bg-red-100 border-red-200';
+        return 'bg-yellow-100 text-yellow-800';
       case 'refunded':
-        return 'text-blue-600 bg-blue-100 border-blue-200';
+        return 'bg-blue-100 text-blue-800';
       default:
-        return 'text-gray-600 bg-gray-100 border-gray-200';
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   const canCancelAppointment = (appointment: AppointmentData) => {
-    if (appointment.status === 'cancelled' || appointment.status === 'completed') {
-      return false;
-    }
-    return true; // Simplified for clarity; add time-based logic if needed
+    const appointmentDateTime = new Date(`${appointment.date}T${appointment.startTime}`);
+    const now = new Date();
+    const hoursUntilAppointment = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return appointment.status === 'confirmed' && hoursUntilAppointment > 2;
   };
 
   const getTimeUntilAppointment = (appointment: AppointmentData) => {
-    const appointmentDateTime = new Date(`${appointment.date} ${appointment.startTime}`);
+    const appointmentDateTime = new Date(`${appointment.date}T${appointment.startTime}`);
     const now = new Date();
-    const timeDifference = appointmentDateTime.getTime() - now.getTime();
-    
-    if (timeDifference <= 0) return 'Past appointment';
-    
-    const hours = Math.floor(timeDifference / (1000 * 60 * 60));
-    const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours >= 24) {
-      const days = Math.floor(hours / 24);
-      return `${days} day${days > 1 ? 's' : ''} remaining`;
-    }
-    
-    return `${hours}h ${minutes}m remaining`;
+    const diffMs = appointmentDateTime.getTime() - now.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return diffHours > 0 ? `${diffHours}h ${diffMinutes}m` : `${diffMinutes}m`;
   };
 
   const handleCancelAppointment = async (appointmentId: string) => {
-    if (!appointmentId) return;
-    
+    if (!cancelReason.trim()) {
+      toast.error('Please provide a reason for cancellation');
+      return;
+    }
+
     setCancellingId(appointmentId);
-    
     try {
       const response = await axiosInstance.put(`/patient/appointments/${appointmentId}/cancel`, {
-        reason: cancelReason || 'Cancelled by patient'
+        cancelReason
       });
-
       if (response.data.success) {
-        toast.success(response.data.message);
-        
-        // Update the appointment in the local state
-        setAppointments(prev => 
-          prev.map(apt => 
-            apt._id === appointmentId 
-              ? { 
-                  ...apt, 
-                  status: 'cancelled', 
-                  paymentStatus: response.data.data.refunded ? 'refunded' : apt.paymentStatus 
-                }
-              : apt
-          )
-        );
-        
-        // Show additional success message if refunded
-        if (response.data.data.refunded) {
-          toast.success(`₹${response.data.data.refundAmount} has been added to your wallet!`, {
-            position: "top-center",
-            autoClose: 5000,
-          });
-          
-          // Refresh wallet data and transactions
-          await refreshWalletData();
-        }
+        toast.success('Appointment cancelled successfully');
+        setShowCancelDialog(null);
+        setCancelReason('');
+        await fetchAppointments();
+        await refreshWalletData();
       }
     } catch (error: any) {
-      console.error('Cancel appointment error:', error);
+      console.error('Error cancelling appointment:', error);
       toast.error(error.response?.data?.message || 'Failed to cancel appointment');
     } finally {
       setCancellingId(null);
-      setShowCancelDialog(null);
-      setCancelReason('');
     }
   };
 
-  // Filter appointments based on selected status
-  const filteredAppointments = appointments.filter(appointment => {
-    if (filterStatus === 'all') return true;
-    return appointment.status.toLowerCase() === filterStatus.toLowerCase();
-  });
+  const filteredAppointments = appointments.filter(appointment => 
+    filterStatus === 'all' || appointment.status === filterStatus
+  );
 
-  const CancelDialog = ({ appointmentId, appointment }: { appointmentId: string, appointment: AppointmentData }) => (
+  const CancelDialog: React.FC<{ appointmentId: string }> = ({ appointmentId }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Cancel Appointment</h3>
-        
-        <div className="mb-4">
-          <p className="text-sm text-gray-600 mb-2">
-            Are you sure you want to cancel this appointment?
-          </p>
-          <div className="bg-gray-50 p-3 rounded text-sm">
-            <p><strong>Doctor:</strong> {appointment.doctor?.name || 'N/A'}</p>
-            <p><strong>Date:</strong> {formatDate(appointment.date)}</p>
-            <p><strong>Time:</strong> {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}</p>
-            <p><strong>Fee:</strong> ₹{appointment.consultationFee}</p>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Reason for cancellation (optional)
-          </label>
-          <textarea
-            value={cancelReason}
-            onChange={(e) => setCancelReason(e.target.value)}
-            placeholder="Enter reason..."
-            className="w-full p-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={3}
-          />
-        </div>
-
-        <div className="mb-4 p-3 bg-yellow-50 rounded border border-yellow-200">
-          <p className="text-sm text-yellow-800">
-            {canCancelAppointment(appointment) 
-              ? "✓ Refund will be processed to your wallet if payment was made."
-              : "⚠️ You cannot cancel appointments within 2 hours of the scheduled time."
-            }
-          </p>
-        </div>
-
-        <div className="flex gap-3">
+      <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+        <h3 className="text-lg font-semibold mb-4">Cancel Appointment</h3>
+        <p className="text-gray-600 mb-4">Please provide a reason for cancellation:</p>
+        <textarea
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)}
+          className="w-full p-2 border rounded-lg mb-4"
+          rows={4}
+          placeholder="Reason for cancellation"
+        />
+        <div className="flex justify-end space-x-3">
           <button
-            onClick={() => {
-              setShowCancelDialog(null);
-              setCancelReason('');
-            }}
-            className="flex-1 px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            onClick={() => setShowCancelDialog(null)}
+            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
           >
-            Keep Appointment
+            Close
           </button>
           <button
             onClick={() => handleCancelAppointment(appointmentId)}
             disabled={cancellingId === appointmentId}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className={`px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 ${
+              cancellingId === appointmentId ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
-            {cancellingId === appointmentId ? 'Cancelling...' : 'Cancel Appointment'}
+            {cancellingId === appointmentId ? 'Cancelling...' : 'Confirm Cancel'}
           </button>
         </div>
       </div>
@@ -259,236 +257,179 @@ const ViewAppointment: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-            <p className="text-lg font-semibold text-gray-700">Loading appointments...</p>
-          </div>
+        <div className="pt-20 flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       </div>
     );
   }
 
-  if (!appointments.length) {
+  if (videoCall.active && videoCall.appointmentId) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <div className="mb-8 flex justify-between items-center">
-            <h1 className="text-3xl font-bold text-gray-800">My Appointments</h1>
-            <button
-              onClick={() => navigate('/wallet')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              View Wallet
-            </button>
-          </div>
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-            <div className="mb-4">
-              <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No appointments found</h3>
-            <p className="text-gray-500 mb-6">You haven't booked any appointments yet.</p>
-            <button
-              onClick={() => navigate('/home')}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
-            >
-              Book Your First Appointment
-              <svg className="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
+      <VideoCall
+        roomId={videoCall.roomId}
+        appointmentId={videoCall.appointmentId}
+        userRole="patient"
+        userName="Patient Name" // TODO: Replace with actual patient name from auth context
+        userId="patient-id" // TODO: Replace with actual patient ID from auth context
+        onCallEnd={handleVideoCallEnd}
+        isIncoming={videoCall.isIncoming}
+        callerName={videoCall.callerName}
+      />
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">My Appointments</h1>
-            <p className="text-gray-600">{appointments.length} appointment{appointments.length !== 1 ? 's' : ''}</p>
+      <div className="pt-20 pb-8">
+        <ToastContainer />
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Your Appointments</h1>
+            <div className="mt-4 flex space-x-4">
+              {['all', 'confirmed', 'pending', 'cancelled'].map(status => (
+                <button
+                  key={status}
+                  onClick={() => setFilterStatus(status)}
+                  className={`px-4 py-2 rounded-lg capitalize ${
+                    filterStatus === status
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-600 border hover:bg-gray-50'
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
           </div>
-          <button
-            onClick={() => navigate('/wallet')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            View Wallet
-          </button>
-        </div>
 
-        {/* Filter Tabs */}
-        <div className="mb-6">
-          <div className="flex space-x-2 bg-white p-1 rounded-lg shadow-sm">
-            {['all', 'confirmed', 'completed', 'cancelled'].map((status) => (
+          {filteredAppointments.length === 0 ? (
+            <div className="text-center py-12">
+              <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-lg font-medium text-gray-900">No appointments</h3>
+              <p className="mt-1 text-gray-600">
+                You don't have any {filterStatus === 'all' ? '' : filterStatus} appointments.
+              </p>
               <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filterStatus === status
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
-                }`}
+                onClick={() => navigate('/patient/book-appointment')}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-                <span className="ml-1 text-xs">
-                  ({status === 'all' ? appointments.length : appointments.filter(apt => apt.status.toLowerCase() === status).length})
-                </span>
+                Book an Appointment
               </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          {filteredAppointments.map((appointment) => (
-            <div key={appointment._id} className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center space-x-3">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(appointment.status)}`}>
-                      {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getPaymentStatusColor(appointment.paymentStatus)}`}>
-                      Payment: {appointment.paymentStatus.charAt(0).toUpperCase() + appointment.paymentStatus.slice(1)}
-                    </span>
-                  </div>
-                  <div className="text-right text-sm text-gray-500">
-                    <p>ID: #{appointment._id.slice(-8).toUpperCase()}</p>
-                    <p>{getTimeUntilAppointment(appointment)}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-3">Appointment Details</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Date:</span>
-                        <span className="font-medium">{formatDate(appointment.date)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Time:</span>
-                        <span className="font-medium">{formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Fee:</span>
-                        <span className="font-medium">₹{appointment.consultationFee}</span>
-                      </div>
-                      {appointment.doctor && (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Doctor:</span>
-                            <span className="font-medium">Dr. {appointment.doctor.name}</span>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {filteredAppointments.map(appointment => {
+                const videoCallStatus = isVideoCallAvailable(appointment);
+                const canCancel = canCancelAppointment(appointment);
+                return (
+                  <div
+                    key={appointment._id}
+                    className="bg-white rounded-lg shadow-sm border p-6"
+                  >
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4">
+                          {appointment.doctor?.profileImage ? (
+                            <img
+                              src={appointment.doctor.profileImage}
+                              alt={appointment.doctor.name}
+                              className="w-12 h-12 rounded-full object-cover"
+                            />
+                          ) : (
+                            <User className="w-12 h-12 text-gray-400" />
+                          )}
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              Dr. {appointment.doctor?.name || 'Unknown'}
+                            </h3>
+                            <p className="text-gray-600">
+                              {/* {appointment.doctor?.specialization.name|| 'Unknown'} */}
+                            </p>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Specialization:</span>
-                            <span className="font-medium">{appointment.doctor.specialization.name}</span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-3">Additional Information</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Booked on:</span>
-                        <span className="font-medium">
-                          {new Date(appointment.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {appointment.notes && (
-                        <div>
-                          <span className="text-gray-600">Notes:</span>
-                          <p className="font-medium text-gray-800 mt-1">{appointment.notes}</p>
                         </div>
-                      )}
-                      {appointment.paymentStatus === 'refunded' && (
-                        <div className="mt-2 p-2 bg-blue-50 rounded border border-blue-200">
-                          <p className="text-sm text-blue-700">
-                            ✓ Refund of ₹{appointment.consultationFee} processed to your wallet
+                        <div className="mt-4 space-y-2">
+                          <div className="flex items-center text-gray-600">
+                            <Calendar className="w-5 h-5 mr-2" />
+                            <span>{formatDate(appointment.date)}</span>
+                          </div>
+                          <div className="flex items-center text-gray-600">
+                            <Clock className="w-5 h-5 mr-2" />
+                            <span>
+                              {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className={`px-2 py-1 rounded-full text-sm ${getStatusColor(appointment.status)}`}>
+                              Status: {appointment.status}
+                            </span>
+                          </div>
+                          <div className="flex items-center">
+                            <span className={`px-2 py-1 rounded-full text-sm ${getPaymentStatusColor(appointment.paymentStatus)}`}>
+                              Payment: {appointment.paymentStatus}
+                            </span>
+                          </div>
+                          <p className="text-gray-600">
+                            Consultation Fee: ₹{appointment.consultationFee}
                           </p>
                         </div>
-                      )}
+                      </div>
+                      <div className="mt-4 md:mt-0 md:ml-6 flex flex-col space-y-3">
+                        {videoCallStatus.available ? (
+                          <button
+                            onClick={() => initiateVideoCall(appointment._id)}
+                            className="w-full flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200"
+                          >
+                            <Video className="w-5 h-5 mr-2" />
+                            Join Video Call
+                          </button>
+                        ) : (
+                          <div className="flex flex-col space-y-2">
+                            <button
+                              disabled
+                              className="w-full flex items-center justify-center px-4 py-3 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
+                            >
+                              <VideoOff className="w-5 h-5 mr-2" />
+                              Video Call Unavailable
+                            </button>
+                            <p className="text-sm text-gray-600 text-center">
+                              {videoCallStatus.message}
+                            </p>
+                          </div>
+                        )}
+                        {appointment.notes && (
+                          <div className="text-sm text-gray-600">
+                            <strong>Notes:</strong> {appointment.notes}
+                          </div>
+                        )}
+                        {appointment.paymentStatus === 'refunded' && (
+                          <div className="text-sm text-blue-600">
+                            Refund Processed: ₹{appointment.consultationFee}
+                          </div>
+                        )}
+                        {canCancel && (
+                          <button
+                            onClick={() => setShowCancelDialog(appointment._id)}
+                            className="w-full flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200"
+                          >
+                            Cancel Appointment
+                          </button>
+                        )}
+                      </div>
                     </div>
+                    {showCancelDialog === appointment._id && (
+                      <CancelDialog appointmentId={appointment._id} />
+                    )}
                   </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="mt-6 pt-4 border-t flex justify-end space-x-3">
-                  {appointment.status !== 'cancelled' && appointment.status !== 'completed' && (
-                    <>
-                      <button
-                        onClick={() => setShowCancelDialog(appointment._id)}
-                        disabled={cancellingId === appointment._id}
-                        className={`px-4 py-2 text-sm rounded-lg transition-all duration-200 ${
-                          canCancelAppointment(appointment)
-                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                            : 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        {canCancelAppointment(appointment) ? 'Cancel Appointment' : 'Cannot Cancel'}
-                      </button>
-                    </>
-                  )}
-                  
-                  <button
-                    onClick={() => navigate(`/appointments/${appointment._id}`)}
-                    className="px-4 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all duration-200"
-                  >
-                    View Details
-                  </button>
-                </div>
-              </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-
-        {/* Empty state for filtered results */}
-        {filteredAppointments.length === 0 && appointments.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-            <div className="mb-4">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No {filterStatus} appointments found</h3>
-            <p className="text-gray-500 mb-4">Try selecting a different status filter.</p>
-          </div>
-        )}
-
-        {/* Bottom Actions */}
-        <div className="mt-8 text-center">
-          <button
-            onClick={() => navigate('/home')}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
-          >
-            Book Another Appointment
-            <svg className="ml-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
+          )}
         </div>
       </div>
-      
-      {/* Cancel Dialog */}
-      {showCancelDialog && (
-        <CancelDialog 
-          appointmentId={showCancelDialog} 
-          appointment={appointments.find(apt => apt._id === showCancelDialog)!}
-        />
-      )}
-      
-      <ToastContainer />
     </div>
   );
 };
 
-export default ViewAppointment;
+export default ViewAppointment

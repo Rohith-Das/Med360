@@ -24,7 +24,8 @@ const NotificationSchema = new Schema<Notification>(
         'payment_refunded',
         'system_announcement',
         'video_call_initiated',
-        'video_call_ended'
+        'video_call_ended',
+        'video_call_initiated',
       ],
       required: true
     },

@@ -30,6 +30,7 @@ import ViewAppointment from "./pages/patientPages/viewAppointment";
 import WalletPage from "./pages/patientPages/WalletPage";
 import DoctorNotificationsPage from "./features/Doctor/DoctorNotificationsPage";
 import DoctorAppointments from "./pages/doctorPages/DoctorAppointmentList";
+import PatientNotificationsPage from "./pages/patientPages/PatientNotificationsPage";
 
 
 function App() {
@@ -105,6 +106,7 @@ function App() {
 <Route path="/appointments" element={<ViewAppointment />} />
 <Route path="/wallet" element={<WalletPage />} />
  <Route path="/doctor/notifications" element={<DoctorNotificationsPage/>}/> 
+  <Route path="/notifications" element={<PatientNotificationsPage/>}/> 
  <Route path="/doctor/appointments" element={<DoctorAppointments />} />
 
     </Routes>

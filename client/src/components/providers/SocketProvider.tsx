@@ -6,7 +6,7 @@ import { useAppSelector } from '@/app/hooks';
 
 interface SocketContextType {
   isConnected: boolean;
-  connect: (doctorId: string) => void;
+  connect: (userId: string, role: 'doctor' | 'patient') => void;
   disconnect: () => void;
 }
 
@@ -26,11 +26,11 @@ interface SocketProviderProps {
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const { doctorAccessToken, doctor } = useAppSelector((state) => state.doctorAuth);
+  const {accessToken,patient}=useAppSelector((state)=>state.auth)
   const [isConnected, setIsConnected] = React.useState(false);
 
-  const connect = (doctorId: string) => {
-    socketService.connect(doctorId);
-    socketService.joinDoctorRoom(doctorId);
+  const connect = (userId:string,role:'doctor'|'patient') => {
+    socketService.connect(userId,role);
     setIsConnected(true);
   };
 
@@ -40,9 +40,19 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
-    // Auto-connect if doctor is authenticated
+    let userId: string | null = null;
+    let role: 'doctor' | 'patient' | null = null;
+
     if (doctorAccessToken && doctor?.id) {
-      connect(doctor.id);
+      userId = doctor.id;
+      role = 'doctor';
+    } else if (accessToken && patient?.id) {
+      userId = patient.id;
+      role = 'patient';
+    }
+
+    if (userId && role) {
+      connect(userId, role);
       
       // Request notification permission
       if ('Notification' in window && Notification.permission === 'default') {
@@ -52,11 +62,10 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       disconnect();
     }
 
-    // Cleanup on unmount
     return () => {
       disconnect();
     };
-  }, [doctorAccessToken, doctor?.id]);
+  }, [doctorAccessToken, doctor?.id, accessToken, patient?.id]);
 
   const value = {
     isConnected,

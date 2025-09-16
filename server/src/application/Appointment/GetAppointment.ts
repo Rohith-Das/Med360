@@ -10,10 +10,16 @@ export class GetAppointmentUC{
 
     async execute(patientId:string):Promise<Appointment[]>{
       try {
-          const patient=await this.repo.findByPatientId(patientId)
+          const appointments=await this.repo.findByPatientId(patientId)
           
 
-          return patient;
+             return appointments.map(apt => ({
+        ...apt,
+        doctor: apt.doctorId ? {
+          name: (apt.doctorId as any).name,
+          specialization: (apt.doctorId as any).specialization
+        } : undefined
+          }))
       } catch (error:any) {
         throw new Error('patient not found for appointment UC')
       }

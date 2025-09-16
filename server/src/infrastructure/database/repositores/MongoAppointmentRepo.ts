@@ -27,19 +27,32 @@ export class MongoAppointmentRepo implements IAppointmentRepository {
   }
 
   async findByPatientId(patientId: string): Promise<Appointment[]> {
-    const appointments = await AppointmentModel.find({ patientId }).sort({ createdAt: -1 });
+    const appointments = await AppointmentModel.find({ patientId })
+    .populate("doctorId", "name specialization")
+    .sort({ createdAt: -1 });
     return appointments.map(appointment => ({
           ...appointment.toObject(),
       id: appointment._id.toString(),
+      doctor:appointment.doctorId?{
+        name:(appointment.doctorId as any).name,
+        specialization:(appointment.doctorId as any).specialization
+      }:undefined
   
     }));
   }
 
   async findByDoctorId(doctorId: string): Promise<Appointment[]> {
-    const appointments = await AppointmentModel.find({ doctorId }).sort({ createdAt: -1 });
+    const appointments = await AppointmentModel.find({ doctorId })
+    .populate('patientId',"name email")
+    .sort({ createdAt: -1 });
     return appointments.map(appointment => ({
         ...appointment.toObject(),
       id: appointment._id.toString(),
+
+      patient:appointment.patientId?{
+        name:(appointment.patientId as any).name,
+        email:(appointment.patientId as any).email
+      }:undefined
     
     }));
   }

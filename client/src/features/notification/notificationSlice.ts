@@ -1,13 +1,14 @@
 import { createSlice,createAsyncThunk,PayloadAction } from "@reduxjs/toolkit";
 import doctorAxiosInstance from "@/api/doctorAxiosInstance";
+import axiosInstance from "@/api/axiosInstance";
+import { useAppSelector } from "@/app/hooks";
 
 export interface Notification {
   id: string;
   userId: string;
   title: string;
   message: string;
-  type: 'appointment_booked' | 'appointment_cancelled' | 'general';
-  isRead: boolean;
+type: 'appointment_booked' | 'appointment_cancelled' | 'video_call_initiated' | 'general';  isRead: boolean;
   data?: {
     appointmentId?: string;
     patientId?: string;
@@ -16,6 +17,7 @@ export interface Notification {
     consultingFee?: number;
     refundAmount?: number;
     cancelReason?: string;
+    roomId?: string;
   };
   createdAt: string;
   updatedAt: string;
@@ -34,26 +36,36 @@ const initialState: NotificationState = {
   error: null,
 };
 
+const getApiInstance=()=>{
+  return doctorAxiosInstance;
+}
+
 export const fetchNotifications = createAsyncThunk(
   'notifications/fetchNotifications',
-  async (params?: { limit?: number; offset?: number; unreadOnly?: boolean }) => {
-    const response = await doctorAxiosInstance.get('/doctor', { params });
+  async (params?: { limit?: number; offset?: number; unreadOnly?: boolean;role?:'doctor'|'patient' }) => {
+    const api=params?.role==='patient'? axiosInstance : doctorAxiosInstance;
+    const endpoint=params?.role==='patient'?'/patient/notifications':'/doctor'
+    const response = await api.get(endpoint, { params:{...params,role:undefined}});
     return response.data.data
   }
 );
 
 export const fetchUnreadCount = createAsyncThunk(
   'notifications/fetchUnreadCount',
-  async () => {
-    const response = await doctorAxiosInstance.get('/doctor/unread');
+  async (role?: 'doctor' | 'patient') => {
+    const api = role === 'patient' ? axiosInstance : doctorAxiosInstance;
+    const endpoint = role === 'patient' ? '/patient/notifications/unread' : '/doctor/unread';
+    const response = await api.get(endpoint);
     return response.data.data;
   }
 );
 
 export const markNotificationAsRead = createAsyncThunk(
   'notifications/markAsRead',
-  async (notificationId: string) => {
-    await doctorAxiosInstance.put(`/doctor/${notificationId}/read`);
+  async ({ notificationId, role }: { notificationId: string; role: 'doctor' | 'patient' }) => {
+    const api = role === 'patient' ? axiosInstance : doctorAxiosInstance;
+    const endpoint = role === 'patient' ? `/patient/notifications/${notificationId}/read` : `/doctor/${notificationId}/read`;
+    await api.put(endpoint);
     return notificationId;
   }
 );
