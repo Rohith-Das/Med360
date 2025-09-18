@@ -15,11 +15,13 @@ import { uploadProfilePicture,removeProfilePicture } from '../controllers/patien
 import { AppointmentController } from '../controllers/Appointment/AppointmentController'
 import { WalletController } from '../controllers/wallet/WalletController'
 import { chatbotController } from '../controllers/patient/AIChatbot/chatbotController'
-
+import { NotificationController } from '../controllers/notification/NotificationController'
 
 const PatientRouter=express.Router()
 const appointmentController=new AppointmentController()
 const walletController = new WalletController()
+const notificationController = new NotificationController();
+
 PatientRouter.post('/register', registerPatientController);
 PatientRouter.post('/verify-otp', verifyOtpController);
 PatientRouter.post('/resend-otp',resendOtpController)
@@ -37,6 +39,10 @@ PatientRouter.delete("/profile/picture", authGuard,removeProfilePicture);
 PatientRouter.get('/appointments',authGuard,appointmentController.getAppointments)
 PatientRouter.get('/appointments/:appointmentId', authGuard, appointmentController.getAppointmentById)
 PatientRouter.put('/appointments/:appointmentId/cancel', authGuard, appointmentController.cancelAppointment)
+
+PatientRouter.get('/notifications', authGuard, notificationController.getNotifications);
+PatientRouter.get('/notifications/unread', authGuard, notificationController.getUnreadNotifications);
+PatientRouter.put('/notifications/:notificationId/read', authGuard, notificationController.markNotificationAsRead);
 
 // Wallet routes
 PatientRouter.get('/wallet/balance', authGuard, walletController.getWalletBalance)

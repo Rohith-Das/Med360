@@ -21,9 +21,10 @@ DoctorRouter.put('/block/:id', adminAuthGuard, doctorController.BlockDoctor);
 DoctorRouter.put('/unblock/:id', adminAuthGuard, doctorController.unblockDoctor);
 DoctorRouter.get('/specialization/:specializationId', doctorController.getDoctorsBySpecialization);
 DoctorRouter.get('/profile',doctorAuthGuard,getDoctorProfileController)
-DoctorRouter.get('/',doctorAuthGuard,notificationController.getNotifications)
-DoctorRouter.get('/unread',doctorAuthGuard,notificationController.getUnreadNotifications);
-DoctorRouter.put('/:notification/read',doctorAuthGuard,notificationController.markNotificationAsRead)
+DoctorRouter.get('/notifications', doctorAuthGuard, notificationController.getNotifications);
+DoctorRouter.get('/notifications/unread', doctorAuthGuard, notificationController.getUnreadNotifications);
+DoctorRouter.put('/notifications/:notificationId/read', doctorAuthGuard, notificationController.markNotificationAsRead);
+
 DoctorRouter.get(
   '/appointments',
   doctorAuthGuard,

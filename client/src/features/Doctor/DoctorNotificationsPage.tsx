@@ -1,30 +1,71 @@
-// pages/doctorPages/DoctorNotificationsPage.tsx
 import React, { useEffect, useState } from 'react';
-import { FaBell, FaCalendarCheck, FaCalendarTimes, FaEye, FaEyeSlash, FaArrowLeft } from 'react-icons/fa';
+import { FaBell, FaCalendarCheck, FaCalendarTimes, FaEye, FaArrowLeft, FaVideo } from 'react-icons/fa';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchNotifications, markNotificationAsRead, Notification } from '../../features/notification/notificationSlice';
 import { useNavigate } from 'react-router-dom';
 import DoctorNavbar from '@/components/doctor/DoctorNavbar';
+import VideoCall from '@/components/videoCall/VideoCall';
+import { useSocket } from '@/components/providers/SocketProvider';
+import doctorAxiosInstance from '@/api/doctorAxiosInstance';
+import { toast } from 'react-toastify';
+import { socketService } from '../notification/socket';
 
 const DoctorNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { notifications, loading, error, unreadCount } = useAppSelector((state) => state.notifications);
-  
+  const { isConnected } = useSocket();
+  const {doctor}=useAppSelector((state)=>state.doctorAuth)
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showVideoCall, setShowVideoCall] = useState<{ active: boolean; roomId?: string; appointmentId?: string; callerName?: string }>({ active: false });
   const itemsPerPage = 10;
 
   useEffect(() => {
     dispatch(fetchNotifications({ 
       limit: itemsPerPage, 
       offset: (currentPage - 1) * itemsPerPage,
-      unreadOnly: filter === 'unread'
+      unreadOnly: filter === 'unread',
+      role: 'doctor'
     }));
   }, [dispatch, currentPage, filter]);
 
-const handleMarkAsRead = (notificationId: string) => {
-  dispatch(markNotificationAsRead({ notificationId, role: "patient" }));
+  // Listen for incoming calls
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const handleIncomingCall = (data: any) => {
+      console.log('Incoming video call:', data);
+      toast.info(`Incoming call from ${data.initiatorName || 'Patient'}`, {
+        position: "top-right",
+        autoClose: false,
+        onClick: () => acceptVideoCall(data.roomId, data.appointmentId, data.initiatorName || 'Patient')
+      });
+    };
+
+    window.addEventListener('incoming_video_call', handleIncomingCall);
+    return () => window.removeEventListener('incoming_video_call', handleIncomingCall);
+  }, [isConnected]);
+
+  const acceptVideoCall = async (roomId: string, appointmentId: string, callerName: string) => {
+    try {
+      const response = await doctorAxiosInstance.post(`/videocall/doctor/join/${roomId}`);
+      if (response.data.success) {
+        setShowVideoCall({ active: true, roomId, appointmentId, callerName });
+socketService.joinVideoRoom(roomId, { appointmentId, userId: doctor?.id, userRole: 'doctor', userName: doctor?.name || 'Doctor' })}
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to join call');
+    }
+  };
+
+  const handleMarkAsRead = (notificationId: string) => {
+    dispatch(markNotificationAsRead({ notificationId, role: "doctor" }));
+  };
+
+ const handleJoinCall = (notification: Notification) => {
+  if (notification.type === 'video_call_initiated' && notification.data?.roomId && notification.data?.appointmentId) {
+    acceptVideoCall(notification.data.roomId, notification.data.appointmentId, notification.title);
+  }
 };
 
   const getNotificationIcon = (type: string) => {
@@ -33,6 +74,8 @@ const handleMarkAsRead = (notificationId: string) => {
         return <FaCalendarCheck className="text-green-500" />;
       case 'appointment_cancelled':
         return <FaCalendarTimes className="text-red-500" />;
+      case 'video_call_initiated':
+        return <FaVideo className="text-blue-500" />;
       default:
         return <FaBell className="text-blue-500" />;
     }
@@ -69,9 +112,27 @@ const handleMarkAsRead = (notificationId: string) => {
         {data.cancelReason && (
           <p><strong>Cancel Reason:</strong> {data.cancelReason}</p>
         )}
+        {data.roomId && (
+          <p><strong>Room ID:</strong> {data.roomId}</p>
+        )}
       </div>
     );
   };
+
+  if (showVideoCall.active) {
+    return (
+      <VideoCall
+        roomId={showVideoCall.roomId}
+        appointmentId={showVideoCall.appointmentId || ''}
+        userRole="doctor"
+        userName="Doctor Name"
+        userId="doctor-id"
+        onCallEnd={() => setShowVideoCall({ active: false })}
+        isIncoming={true}
+        callerName={showVideoCall.callerName}
+      />
+    );
+  }
 
   if (loading && notifications.length === 0) {
     return (
@@ -94,7 +155,7 @@ const handleMarkAsRead = (notificationId: string) => {
           <div className="mb-8">
             <button
               onClick={() => navigate(-1)}
-              className="mb-4 flex items-center text-blue-600 hover:text-blue-700"
+              className="mb-4 flex items-center text-blue-600 hover:text-blue-700 transition-colors"
             >
               <FaArrowLeft className="mr-2" />
               Back
@@ -109,7 +170,6 @@ const handleMarkAsRead = (notificationId: string) => {
               </div>
               
               <div className="flex items-center space-x-4">
-                {/* Filter Buttons */}
                 <div className="flex bg-white rounded-lg shadow-sm border">
                   <button
                     onClick={() => setFilter('all')}
@@ -136,14 +196,12 @@ const handleMarkAsRead = (notificationId: string) => {
             </div>
           </div>
 
-          {/* Error State */}
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
               <p className="text-red-700">{error}</p>
             </div>
           )}
 
-          {/* Notifications List */}
           <div className="space-y-4">
             {notifications.length === 0 ? (
               <div className="text-center py-12">
@@ -195,15 +253,25 @@ const handleMarkAsRead = (notificationId: string) => {
                         </div>
                       </div>
                       
-                      {!notification.isRead && (
-                        <button
-                          onClick={() => handleMarkAsRead(notification.id)}
-                          className="ml-4 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Mark as read"
-                        >
-                          <FaEye className="h-4 w-4" />
-                        </button>
-                      )}
+                      <div className="flex items-center space-x-2">
+                        {notification.type === 'video_call_initiated' && (
+                          <button
+                            onClick={() => handleJoinCall(notification)}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                          >
+                            Join Call
+                          </button>
+                        )}
+                        {!notification.isRead && (
+                          <button
+                            onClick={() => handleMarkAsRead(notification.id)}
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Mark as read"
+                          >
+                            <FaEye className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

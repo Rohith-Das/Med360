@@ -1,12 +1,12 @@
-
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Navbar from '../../components/patient/Navbar';
-import { toast, ToastContainer } from 'react-toastify';
-import axiosInstance from '../../api/axiosInstance';
-import { Video, VideoOff, Phone, Clock, Calendar, User } from 'lucide-react';
-import VideoCall from '@/components/videoCall/VideoCall';
-import { useSocket } from '@/components/providers/SocketProvider';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Navbar from "../../components/patient/Navbar";
+import { toast, ToastContainer } from "react-toastify";
+import axiosInstance from "../../api/axiosInstance";
+import { Video, VideoOff, Phone, Clock, Calendar, User } from "lucide-react";
+import VideoCall from "@/components/videoCall/VideoCall";
+import { useSocket } from "@/components/providers/SocketProvider";
+import { useAppSelector } from "@/app/hooks";
 
 interface AppointmentData {
   _id: string;
@@ -36,16 +36,17 @@ interface VideoCallState {
   callerName?: string;
 }
 
- const ViewAppointment: React.FC = () => {
+const ViewAppointment: React.FC = () => {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<AppointmentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState<string | null>(null);
-  const [cancelReason, setCancelReason] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [cancelReason, setCancelReason] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [videoCall, setVideoCall] = useState<VideoCallState>({ active: false });
   const { isConnected } = useSocket();
+  const patient = useAppSelector((state) => state.auth.patient);
 
   useEffect(() => {
     fetchAppointments();
@@ -56,8 +57,8 @@ interface VideoCallState {
     if (!isConnected) return;
 
     const handleIncomingCall = (data: any) => {
-      console.log('Incoming video call:', data);
-      toast.info(`Incoming call from Dr. ${data.initiatorName || 'Doctor'}`, {
+      console.log("Incoming video call:", data);
+      toast.info(`Incoming call from Dr. ${data.initiatorName || "Doctor"}`, {
         position: "top-right",
         autoClose: false,
         onClick: () => {
@@ -66,68 +67,75 @@ interface VideoCallState {
             roomId: data.roomId,
             appointmentId: data.appointmentId,
             isIncoming: true,
-            callerName: `Dr. ${data.initiatorName || 'Doctor'}`
+            callerName: `Dr. ${data.initiatorName || "Doctor"}`,
           });
-          navigate('/video-call');
-        }
+          // Removed navigate('/video-call')
+        },
       });
     };
 
-    window.addEventListener('incoming_video_call', handleIncomingCall);
-    return () => {
-      window.removeEventListener('incoming_video_call', handleIncomingCall);
+    const handleCallEnded = (data: any) => {
+      console.log("Video call ended:", data);
+      setVideoCall({ active: false });
+      toast.info("Video call has ended", { position: "top-right" });
     };
-  }, [isConnected, navigate]);
+
+    window.addEventListener("incoming_video_call", handleIncomingCall);
+    window.addEventListener("video_call_ended", handleCallEnded);
+
+    return () => {
+      window.removeEventListener("incoming_video_call", handleIncomingCall);
+      window.removeEventListener("video_call_ended", handleCallEnded);
+    };
+  }, [isConnected]);
 
   const fetchAppointments = async () => {
     try {
-      const res = await axiosInstance.get('/patient/appointments');
+      const res = await axiosInstance.get("/patient/appointments");
       setAppointments(res.data.data);
       setLoading(false);
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to fetch appointments');
+      toast.error(err.response?.data?.message || "Failed to fetch appointments");
       setLoading(false);
     }
   };
 
   const refreshWalletData = async () => {
     try {
-      // Assuming there's an endpoint to refresh wallet data
-      const res = await axiosInstance.get('/patient/wallet');
-      // Update wallet in Redux or context if needed
-      console.log('Wallet refreshed:', res.data);
+      const res = await axiosInstance.get("/patient/wallet");
+      console.log("Wallet refreshed:", res.data);
     } catch (err) {
-      console.error('Error refreshing wallet:', err);
+      console.error("Error refreshing wallet:", err);
     }
   };
 
   const isVideoCallAvailable = (appointment: AppointmentData): { available: boolean; message?: string } => {
-    if (appointment.status !== 'confirmed') {
-      return { available: false, message: 'Appointment must be confirmed' };
+    if (appointment.status !== "confirmed") {
+      return { available: false, message: "Appointment must be confirmed" };
     }
     return { available: true };
   };
 
   const initiateVideoCall = async (appointmentId: string) => {
     try {
-      const response = await axiosInstance.post('/videocall/initiate', {
-        appointmentId
+      const response = await axiosInstance.post("/videocall/initiate", {
+        appointmentId,
       });
 
       if (response.data.success) {
-        toast.success('Video call initiated! Notification sent to doctor.');
+        toast.success("Video call initiated! Notification sent to doctor.");
         setVideoCall({
           active: true,
           roomId: response.data.data.roomId,
           appointmentId,
-          isIncoming: false
+          isIncoming: false,
         });
-        navigate('/video-call');
+        // Removed navigate('/video-call')
       }
     } catch (error: any) {
-      console.error('Error initiating video call:', error);
-      toast.error(error.response?.data?.message || 'Failed to initiate video call');
+      console.error("Error initiating video call:", error);
+      toast.error(error.response?.data?.message || "Failed to initiate video call");
     }
   };
 
@@ -137,10 +145,10 @@ interface VideoCallState {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -150,27 +158,27 @@ interface VideoCallState {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
+      case "confirmed":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'refunded':
-        return 'bg-blue-100 text-blue-800';
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "refunded":
+        return "bg-blue-100 text-blue-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -178,7 +186,7 @@ interface VideoCallState {
     const appointmentDateTime = new Date(`${appointment.date}T${appointment.startTime}`);
     const now = new Date();
     const hoursUntilAppointment = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-    return appointment.status === 'confirmed' && hoursUntilAppointment > 2;
+    return appointment.status === "confirmed" && hoursUntilAppointment > 2;
   };
 
   const getTimeUntilAppointment = (appointment: AppointmentData) => {
@@ -192,32 +200,32 @@ interface VideoCallState {
 
   const handleCancelAppointment = async (appointmentId: string) => {
     if (!cancelReason.trim()) {
-      toast.error('Please provide a reason for cancellation');
+      toast.error("Please provide a reason for cancellation");
       return;
     }
 
     setCancellingId(appointmentId);
     try {
       const response = await axiosInstance.put(`/patient/appointments/${appointmentId}/cancel`, {
-        cancelReason
+        cancelReason,
       });
       if (response.data.success) {
-        toast.success('Appointment cancelled successfully');
+        toast.success("Appointment cancelled successfully");
         setShowCancelDialog(null);
-        setCancelReason('');
+        setCancelReason("");
         await fetchAppointments();
         await refreshWalletData();
       }
     } catch (error: any) {
-      console.error('Error cancelling appointment:', error);
-      toast.error(error.response?.data?.message || 'Failed to cancel appointment');
+      console.error("Error cancelling appointment:", error);
+      toast.error(error.response?.data?.message || "Failed to cancel appointment");
     } finally {
       setCancellingId(null);
     }
   };
 
-  const filteredAppointments = appointments.filter(appointment => 
-    filterStatus === 'all' || appointment.status === filterStatus
+  const filteredAppointments = appointments.filter(
+    (appointment) => filterStatus === "all" || appointment.status === filterStatus
   );
 
   const CancelDialog: React.FC<{ appointmentId: string }> = ({ appointmentId }) => (
@@ -243,10 +251,10 @@ interface VideoCallState {
             onClick={() => handleCancelAppointment(appointmentId)}
             disabled={cancellingId === appointmentId}
             className={`px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 ${
-              cancellingId === appointmentId ? 'opacity-50 cursor-not-allowed' : ''
+              cancellingId === appointmentId ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
-            {cancellingId === appointmentId ? 'Cancelling...' : 'Confirm Cancel'}
+            {cancellingId === appointmentId ? "Cancelling..." : "Confirm Cancel"}
           </button>
         </div>
       </div>
@@ -270,8 +278,8 @@ interface VideoCallState {
         roomId={videoCall.roomId}
         appointmentId={videoCall.appointmentId}
         userRole="patient"
-        userName="Patient Name" // TODO: Replace with actual patient name from auth context
-        userId="patient-id" // TODO: Replace with actual patient ID from auth context
+        userName={patient?.name || "Patient"}
+        userId={patient?.id || "patient-id"}
         onCallEnd={handleVideoCallEnd}
         isIncoming={videoCall.isIncoming}
         callerName={videoCall.callerName}
@@ -288,14 +296,14 @@ interface VideoCallState {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Your Appointments</h1>
             <div className="mt-4 flex space-x-4">
-              {['all', 'confirmed', 'pending', 'cancelled'].map(status => (
+              {["all", "confirmed", "pending", "cancelled"].map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
                   className={`px-4 py-2 rounded-lg capitalize ${
                     filterStatus === status
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-600 border hover:bg-gray-50'
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-gray-600 border hover:bg-gray-50"
                   }`}
                 >
                   {status}
@@ -309,10 +317,10 @@ interface VideoCallState {
               <Calendar className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-lg font-medium text-gray-900">No appointments</h3>
               <p className="mt-1 text-gray-600">
-                You don't have any {filterStatus === 'all' ? '' : filterStatus} appointments.
+                You don't have any {filterStatus === "all" ? "" : filterStatus} appointments.
               </p>
               <button
-                onClick={() => navigate('/patient/book-appointment')}
+                onClick={() => navigate("/patient/book-appointment")}
                 className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Book an Appointment
@@ -320,7 +328,7 @@ interface VideoCallState {
             </div>
           ) : (
             <div className="space-y-6">
-              {filteredAppointments.map(appointment => {
+              {filteredAppointments.map((appointment) => {
                 const videoCallStatus = isVideoCallAvailable(appointment);
                 const canCancel = canCancelAppointment(appointment);
                 return (
@@ -342,10 +350,10 @@ interface VideoCallState {
                           )}
                           <div>
                             <h3 className="text-lg font-semibold text-gray-900">
-                              Dr. {appointment.doctor?.name || 'Unknown'}
+                              Dr. {appointment.doctor?.name || "Unknown"}
                             </h3>
                             <p className="text-gray-600">
-                              {/* {appointment.doctor?.specialization.name|| 'Unknown'} */}
+                              {appointment.doctor?.specialization?.name || "Unknown Specialization"}
                             </p>
                           </div>
                         </div>
@@ -361,12 +369,20 @@ interface VideoCallState {
                             </span>
                           </div>
                           <div className="flex items-center">
-                            <span className={`px-2 py-1 rounded-full text-sm ${getStatusColor(appointment.status)}`}>
+                            <span
+                              className={`px-2 py-1 rounded-full text-sm ${getStatusColor(
+                                appointment.status
+                              )}`}
+                            >
                               Status: {appointment.status}
                             </span>
                           </div>
                           <div className="flex items-center">
-                            <span className={`px-2 py-1 rounded-full text-sm ${getPaymentStatusColor(appointment.paymentStatus)}`}>
+                            <span
+                              className={`px-2 py-1 rounded-full text-sm ${getPaymentStatusColor(
+                                appointment.paymentStatus
+                              )}`}
+                            >
                               Payment: {appointment.paymentStatus}
                             </span>
                           </div>
@@ -403,7 +419,7 @@ interface VideoCallState {
                             <strong>Notes:</strong> {appointment.notes}
                           </div>
                         )}
-                        {appointment.paymentStatus === 'refunded' && (
+                        {appointment.paymentStatus === "refunded" && (
                           <div className="text-sm text-blue-600">
                             Refund Processed: ₹{appointment.consultationFee}
                           </div>
@@ -432,4 +448,4 @@ interface VideoCallState {
   );
 };
 
-export default ViewAppointment
+export default ViewAppointment;

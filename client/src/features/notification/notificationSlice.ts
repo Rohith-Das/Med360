@@ -1,14 +1,16 @@
-import { createSlice,createAsyncThunk,PayloadAction } from "@reduxjs/toolkit";
+
+
+import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import doctorAxiosInstance from "@/api/doctorAxiosInstance";
 import axiosInstance from "@/api/axiosInstance";
-import { useAppSelector } from "@/app/hooks";
 
 export interface Notification {
   id: string;
   userId: string;
   title: string;
   message: string;
-type: 'appointment_booked' | 'appointment_cancelled' | 'video_call_initiated' | 'general';  isRead: boolean;
+  type: 'appointment_booked' | 'appointment_cancelled' | 'video_call_initiated' | 'general';
+  isRead: boolean;
   data?: {
     appointmentId?: string;
     patientId?: string;
@@ -29,6 +31,7 @@ interface NotificationState {
   loading: boolean;
   error: string | null;
 }
+
 const initialState: NotificationState = {
   notifications: [],
   unreadCount: 0,
@@ -36,17 +39,13 @@ const initialState: NotificationState = {
   error: null,
 };
 
-const getApiInstance=()=>{
-  return doctorAxiosInstance;
-}
-
 export const fetchNotifications = createAsyncThunk(
   'notifications/fetchNotifications',
-  async (params?: { limit?: number; offset?: number; unreadOnly?: boolean;role?:'doctor'|'patient' }) => {
-    const api=params?.role==='patient'? axiosInstance : doctorAxiosInstance;
-    const endpoint=params?.role==='patient'?'/patient/notifications':'/doctor'
-    const response = await api.get(endpoint, { params:{...params,role:undefined}});
-    return response.data.data
+  async (params?: { limit?: number; offset?: number; unreadOnly?: boolean; role?: 'doctor' | 'patient' }) => {
+    const api = params?.role === 'patient' ? axiosInstance : doctorAxiosInstance;
+    const endpoint = params?.role === 'patient' ? '/patient/notifications' : '/doctor/notifications';
+    const response = await api.get(endpoint, { params: { ...params, role: undefined } });
+    return response.data.data;
   }
 );
 
@@ -54,7 +53,7 @@ export const fetchUnreadCount = createAsyncThunk(
   'notifications/fetchUnreadCount',
   async (role?: 'doctor' | 'patient') => {
     const api = role === 'patient' ? axiosInstance : doctorAxiosInstance;
-    const endpoint = role === 'patient' ? '/patient/notifications/unread' : '/doctor/unread';
+    const endpoint = role === 'patient' ? '/patient/notifications/unread' : '/doctor/notifications/unread';
     const response = await api.get(endpoint);
     return response.data.data;
   }
@@ -64,7 +63,7 @@ export const markNotificationAsRead = createAsyncThunk(
   'notifications/markAsRead',
   async ({ notificationId, role }: { notificationId: string; role: 'doctor' | 'patient' }) => {
     const api = role === 'patient' ? axiosInstance : doctorAxiosInstance;
-    const endpoint = role === 'patient' ? `/patient/notifications/${notificationId}/read` : `/doctor/${notificationId}/read`;
+    const endpoint = role === 'patient' ? `/patient/notifications/${notificationId}/read` : `/doctor/notifications/${notificationId}/read`;
     await api.put(endpoint);
     return notificationId;
   }
@@ -89,6 +88,12 @@ const notificationSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+    },
+    updateNotificationData: (state, action: PayloadAction<{ id: string; data: any }>) => {
+      const notification = state.notifications.find(n => n.id === action.payload.id);
+      if (notification) {
+        notification.data = { ...notification.data, ...action.payload.data };
+      }
     },
   },
   extraReducers: (builder) => {
@@ -122,5 +127,5 @@ const notificationSlice = createSlice({
   },
 });
 
-export const { addNotification, markAsRead, clearError } = notificationSlice.actions;
+export const { addNotification, markAsRead, clearError, updateNotificationData } = notificationSlice.actions;
 export default notificationSlice.reducer;

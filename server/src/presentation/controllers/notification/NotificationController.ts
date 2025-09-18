@@ -13,7 +13,8 @@ export class NotificationController{
             if(!userId){
                 return res.status(401).json({success:false,message:'unauthorized'})
             }
-            const {limit,offset,unreadOnly}=req.params;
+           const { limit, offset, unreadOnly } = req.query;
+
             const getNotificationUC=container.resolve(GetNotificationsUC);
 
             const result=await getNotificationUC.execute(userId,{

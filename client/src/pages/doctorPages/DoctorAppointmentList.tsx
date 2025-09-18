@@ -1,11 +1,13 @@
+
+
 import React, { useEffect, useState } from "react";
 import doctorAxiosInstance from "../../api/doctorAxiosInstance";
 import { toast, ToastContainer } from "react-toastify";
 import DoctorNavbar from "@/components/doctor/DoctorNavbar";
-import { useNavigate } from "react-router-dom";
 import { Video, VideoOff, Calendar, User, Clock } from "lucide-react";
 import { useSocket } from "@/components/providers/SocketProvider";
 import VideoCall from "@/components/videoCall/VideoCall";
+import { useAppSelector } from "@/app/hooks";
 
 interface AppointmentData {
   _id: string;
@@ -33,10 +35,10 @@ interface VideoCallState {
 const DoctorAppointments: React.FC = () => {
   const [appointments, setAppointments] = useState<AppointmentData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [videoCall, setVideoCall] = useState<VideoCallState>({ active: false });
   const { isConnected } = useSocket();
-  const navigate = useNavigate();
+  const doctor = useAppSelector((state) => state.doctorAuth.doctor);
 
   useEffect(() => {
     fetchAppointments();
@@ -59,8 +61,8 @@ const DoctorAppointments: React.FC = () => {
             isIncoming: true,
             callerName: data.initiatorName || "Patient",
           });
-          navigate('/doctor/video-call');
-        }
+          // Removed navigate('/doctor/video-call')
+        },
       });
     };
 
@@ -77,7 +79,7 @@ const DoctorAppointments: React.FC = () => {
       window.removeEventListener("incoming_video_call", handleIncomingCall);
       window.removeEventListener("video_call_ended", handleCallEnded);
     };
-  }, [isConnected, navigate]);
+  }, [isConnected]);
 
   const fetchAppointments = async () => {
     try {
@@ -112,7 +114,7 @@ const DoctorAppointments: React.FC = () => {
           appointmentId,
           isIncoming: false,
         });
-        navigate('/doctor/video-call');
+        // Removed navigate('/doctor/video-call')
       }
     } catch (error: any) {
       console.error("Error initiating video call:", error);
@@ -126,10 +128,10 @@ const DoctorAppointments: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
@@ -137,37 +139,22 @@ const DoctorAppointments: React.FC = () => {
     return time; // Assuming time is in HH:MM format; adjust if needed
   };
 
-   
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
+      case "confirmed":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
-  const filteredAppointments = appointments.filter(appointment => 
-    filterStatus === 'all' || appointment.status === filterStatus
+  const filteredAppointments = appointments.filter(
+    (appointment) => filterStatus === "all" || appointment.status === filterStatus
   );
-
-//   filteredAppointments.map(appointment => {
-//   console.log("Patient email:", appointment.patient?.email);
-//   console.log("Patient name:", appointment.patient?.name);
-//   return (
-//     <div key={appointment._id}>
-//       <p className="text-gray-600">
-//         {appointment.patient?.email || "No email provided"}
-//       </p>
-//     </div>
-//   );
-// })
-
-
 
   if (videoCall.active && videoCall.appointmentId) {
     return (
@@ -175,8 +162,8 @@ const DoctorAppointments: React.FC = () => {
         roomId={videoCall.roomId}
         appointmentId={videoCall.appointmentId}
         userRole="doctor"
-        userName="Doctor Name" 
-        userId="doctor-id" 
+        userName={doctor?.name || "Doctor"}
+        userId={doctor?.id || "doctor-id"}
         onCallEnd={handleVideoCallEnd}
         isIncoming={videoCall.isIncoming}
         callerName={videoCall.callerName}
@@ -204,14 +191,14 @@ const DoctorAppointments: React.FC = () => {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900">Your Appointments</h1>
             <div className="mt-4 flex space-x-4">
-              {['all', 'confirmed', 'pending', 'cancelled'].map(status => (
+              {["all", "confirmed", "pending", "cancelled"].map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
                   className={`px-4 py-2 rounded-lg capitalize ${
                     filterStatus === status
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-600 border hover:bg-gray-50'
+                      ? "bg-blue-600 text-white"
+                      : "bg-white text-gray-600 border hover:bg-gray-50"
                   }`}
                 >
                   {status}
@@ -225,12 +212,12 @@ const DoctorAppointments: React.FC = () => {
               <Calendar className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-lg font-medium text-gray-900">No appointments</h3>
               <p className="mt-1 text-gray-600">
-                You don't have any {filterStatus === 'all' ? '' : filterStatus} appointments.
+                You don't have any {filterStatus === "all" ? "" : filterStatus} appointments.
               </p>
             </div>
           ) : (
             <div className="space-y-6">
-              {filteredAppointments.map(appointment => {
+              {filteredAppointments.map((appointment) => {
                 const videoCallStatus = isVideoCallAvailable(appointment);
                 return (
                   <div
@@ -242,15 +229,11 @@ const DoctorAppointments: React.FC = () => {
                         <div className="flex items-center space-x-4">
                           <User className="w-12 h-12 text-gray-400" />
                           <div>
-                            
                             <h3 className="text-lg font-semibold text-gray-900">
-                              {appointment.patient?.name || 'Unknown Patient'}
-                            
-                              
+                              {appointment.patient?.name || "Unknown Patient"}
                             </h3>
                             <p className="text-gray-600">
-                              {appointment.patient?.email || 'No email provided'}
-                             
+                              {appointment.patient?.email || "No email provided"}
                             </p>
                           </div>
                         </div>
@@ -262,11 +245,16 @@ const DoctorAppointments: React.FC = () => {
                           <div className="flex items-center text-gray-600">
                             <Clock className="w-5 h-5 mr-2" />
                             <span>
-                              {formatTime(appointment.startTime)} - {formatTime(appointment.endTime)}
+                              {formatTime(appointment.startTime)} -{" "}
+                              {formatTime(appointment.endTime)}
                             </span>
                           </div>
                           <div className="flex items-center">
-                            <span className={`px-2 py-1 rounded-full text-sm ${getStatusColor(appointment.status)}`}>
+                            <span
+                              className={`px-2 py-1 rounded-full text-sm ${getStatusColor(
+                                appointment.status
+                              )}`}
+                            >
                               Status: {appointment.status}
                             </span>
                           </div>
@@ -311,4 +299,4 @@ const DoctorAppointments: React.FC = () => {
   );
 };
 
-export default DoctorAppointments
+export default DoctorAppointments;

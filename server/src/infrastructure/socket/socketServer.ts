@@ -1,4 +1,4 @@
-// server/src/infrastructure/socket/socketServer.ts - Enhanced for video calls with bidirectional notifications
+// server/src/infrastructure/socket/socketServer.ts
 import { Server, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 import { container } from "tsyringe";
@@ -164,7 +164,12 @@ export class SocketServer {
         .map(socketId => {
           const participant = Array.from(this.connectedUsers.entries())
             .find(([userId, userSocketId]) => userSocketId === socketId);
-          return participant ? { userId: participant[0], socketId } : null;
+          return participant ? {
+            userId: participant[0],
+            socketId,
+            userName: socket.userName,
+            userRole: socket.userRole
+          } : null;
         })
         .filter(Boolean);
       
@@ -317,7 +322,6 @@ export class SocketServer {
 
     // Request notification count update
     socket.on('request_notification_count', () => {
-      // This would trigger a notification count update
       console.log(`Notification count requested by ${socket.userId}`);
     });
   }
@@ -333,6 +337,15 @@ export class SocketServer {
     }
     console.log(`User ${userId} not connected - event ${event} not sent`);
     return false;
+  }
+
+  public sendToRoom(roomId: string, event: string, data: any): void {
+    this.io.to(roomId).emit(event, data);
+    console.log(`Event ${event} sent to room ${roomId}`);
+  }
+
+  public getSocketId(userId: string): string | undefined {
+    return this.connectedUsers.get(userId);
   }
 
   public sendToDoctor(doctorId: string, event: string, data: any): boolean {

@@ -6,7 +6,7 @@ export interface Notification{
     recipientType:'doctor'|'admin'|'patient';
     senderId?:string;
      senderType?: 'patient' | 'doctor' | 'admin' ;
-      type: 'appointment_booked' | 'appointment_cancelled' | 'appointment_confirmed' | 'appointment_rescheduled' | 'payment_received' | 'payment_refunded' | 'system_announcement'| 'video_call_initiated' | 'video_call_ended';
+      type?: 'appointment_booked' | 'appointment_cancelled' | 'appointment_confirmed' | 'appointment_rescheduled' | 'payment_received' | 'payment_refunded' | 'system_announcement'| 'video_call_initiated' | 'video_call_ended'|'call_missed';
   title: string;
   message: string;
   data?: {

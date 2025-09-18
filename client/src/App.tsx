@@ -31,6 +31,7 @@ import WalletPage from "./pages/patientPages/WalletPage";
 import DoctorNotificationsPage from "./features/Doctor/DoctorNotificationsPage";
 import DoctorAppointments from "./pages/doctorPages/DoctorAppointmentList";
 import PatientNotificationsPage from "./pages/patientPages/PatientNotificationsPage";
+import DoctorChatPage from "./pages/doctorPages/DoctorChatPage";
 
 
 function App() {
@@ -108,7 +109,7 @@ function App() {
  <Route path="/doctor/notifications" element={<DoctorNotificationsPage/>}/> 
   <Route path="/notifications" element={<PatientNotificationsPage/>}/> 
  <Route path="/doctor/appointments" element={<DoctorAppointments />} />
-
+ <Route path="/doctor/chats" element={<DoctorChatPage />} />
     </Routes>
   );
 }
