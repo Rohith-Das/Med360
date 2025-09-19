@@ -1,12 +1,13 @@
+import mongoose ,{Types} from "mongoose";
 export interface ChatMessage {
   id?: string;
   appointmentId: string;
   senderId: string;
   senderType: 'doctor' | 'patient';
-  receiverId: string;
+  receiverId: string| Types.ObjectId;
   receiverType: 'doctor' | 'patient';
   message: string;
-  messageType: 'text' | 'image' | 'file';
+  messageType: 'text' | 'image' | 'file'|undefined;
   fileUrl?: string;
   fileName?: string;
   fileSize?: number;
