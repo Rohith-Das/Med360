@@ -1,9 +1,9 @@
-
 import { inject, injectable } from 'tsyringe';
 import { IAppointmentRepository } from '../../domain/repositories/AppointmentRepository';
 import { Appointment } from '../../domain/entities/Appointment.entiry';
 import { IScheduleRepository } from '../../domain/repositories/ScheduleRepository-method';
 import { NotificationService } from '../notification/NotificationService';
+import { createOrChatRoomUC } from '../Chats/CreateOrGetChatRoomUC';
 
 interface CreateAppointmentInput {
   patientId: string;
@@ -14,20 +14,21 @@ interface CreateAppointmentInput {
   startTime: string;
   endTime: string;
   consultationFee: number;
-   paymentMethod?: 'stripe' | 'wallet';
+  paymentMethod?: 'stripe' | 'wallet';
 }
 
 @injectable()
 export class CreateAppointmentUC {
   constructor(
     @inject('IAppointmentRepository') private appointmentRepo: IAppointmentRepository,
-     @inject('IScheduleRepository') private scheduleRepo: IScheduleRepository,
-     private notificationService:NotificationService
+    @inject('IScheduleRepository') private scheduleRepo: IScheduleRepository,
+    @inject('CreateOrGetChatRoomUC') private createOrGetChatRoomUuseCase: createOrChatRoomUC,
+    private notificationService: NotificationService
   ) {}
 
   async execute(input: CreateAppointmentInput): Promise<Appointment> {
     try {
-       const schedule = await this.scheduleRepo.findById(input.scheduleId);
+      const schedule = await this.scheduleRepo.findById(input.scheduleId);
       if (!schedule) {
         throw new Error('Schedule not found');
       }
@@ -49,6 +50,7 @@ export class CreateAppointmentUC {
         throw new Error('Time slot is not available');
       }
 
+      // Create appointment
       const appointment = await this.appointmentRepo.create({
         patientId: input.patientId,
         doctorId: input.doctorId,
@@ -57,30 +59,38 @@ export class CreateAppointmentUC {
         date: input.date,
         startTime: input.startTime,
         endTime: input.endTime,
-       status: input.paymentMethod === 'wallet' ? 'confirmed' : 'pending',
+        status: input.paymentMethod === 'wallet' ? 'confirmed' : 'pending',
         paymentStatus: input.paymentMethod === 'wallet' ? 'paid' : 'pending',
         consultationFee: input.consultationFee,
       });
-      // if (input.paymentMethod === 'wallet') {
-      //   await this.scheduleRepo.updateTimeSlot(input.scheduleId, input.timeSlotId, {
-      //     isBooked: true,
-      //     patientId: input.patientId
-      //   });
-      // }
-        await this.scheduleRepo.updateTimeSlot(input.scheduleId, input.timeSlotId, {
+
+      // Update time slot
+      await this.scheduleRepo.updateTimeSlot(input.scheduleId, input.timeSlotId, {
         isBooked: true,
         patientId: input.patientId,
       });
+
+      // ✅ Create or update chat room
+      const chatRoomResult = await this.createOrGetChatRoomUuseCase.execute({
+        doctorId: input.doctorId,
+        patientId: input.patientId,
+        appointmentDate: input.date
+      });
+
+      console.log(`Chat room ${chatRoomResult.isNew ? 'created' : 'updated'}: ${chatRoomResult.chatRoomId}`);
+
+      // Send notification
       await this.notificationService.sendAppointmentBookedNotification({
-        appointmentId:appointment.id!,
-        patientId:input.patientId,
-        doctorId:input.doctorId,
-        appointmentData:input.date.toISOString().split('T')[0],
-        appointmentTime:`${input.startTime}-${input.endTime}`,
-        consultingFee:input.consultationFee,
-        type:'booked'
-      })
-console.log(`Appointment created and notificaiton sent :${appointment.id}`);
+        appointmentId: appointment.id!,
+        patientId: input.patientId,
+        doctorId: input.doctorId,
+        appointmentData: input.date.toISOString().split('T')[0],
+        appointmentTime: `${input.startTime}-${input.endTime}`,
+        consultingFee: input.consultationFee,
+        type: 'booked'
+      });
+
+      console.log(`Appointment created, chat activated, and notification sent: ${appointment.id}`);
 
       return appointment;
     } catch (error: any) {

@@ -31,10 +31,15 @@ import WalletPage from "./pages/patientPages/WalletPage";
 import DoctorNotificationsPage from "./features/Doctor/DoctorNotificationsPage";
 import DoctorAppointments from "./pages/doctorPages/DoctorAppointmentList";
 import PatientNotificationsPage from "./pages/patientPages/PatientNotificationsPage";
-import DoctorChatPage from "./pages/doctorPages/DoctorChatPage";
-
+import DoctorChatPage from "./pages/chatPages/DoctorChatPage";
+import { useAppSelector } from "./app/hooks";
+import PatientChatPage from "./pages/chatPages/PatientChatPage";
 
 function App() {
+  const { patient } = useAppSelector((state) => state.auth);
+  const { doctor } = useAppSelector((state) => state.doctorAuth);
+  const role = patient ? 'patient' : doctor ? 'doctor' : null;
+
   return (
     <Routes>
       <Route path="/" element={<FirstPage />} />
@@ -109,7 +114,10 @@ function App() {
  <Route path="/doctor/notifications" element={<DoctorNotificationsPage/>}/> 
   <Route path="/notifications" element={<PatientNotificationsPage/>}/> 
  <Route path="/doctor/appointments" element={<DoctorAppointments />} />
- <Route path="/doctor/chats" element={<DoctorChatPage />} />
+
+    <Route path="/chat" element={<PatientChatPage />} />
+<Route path="/doctor/chat" element={<DoctorChatPage />} />
+     
     </Routes>
   );
 }

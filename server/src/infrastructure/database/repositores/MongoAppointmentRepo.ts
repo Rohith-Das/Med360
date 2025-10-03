@@ -1,4 +1,3 @@
-// src/infrastructure/database/repositories/MongoAppointmentRepo.ts
 import { injectable } from 'tsyringe';
 import { IAppointmentRepository } from '../../../domain/repositories/AppointmentRepository';
 import { Appointment } from '../../../domain/entities/Appointment.entiry';
@@ -10,9 +9,9 @@ export class MongoAppointmentRepo implements IAppointmentRepository {
     const newAppointment = new AppointmentModel(appointment);
     const saved = await newAppointment.save();
     return {
-        ...saved.toObject(),
+      ...saved.toObject(),
       id: saved._id.toString(),
-    
+
     };
   }
 
@@ -20,40 +19,40 @@ export class MongoAppointmentRepo implements IAppointmentRepository {
     const appointment = await AppointmentModel.findById(id);
     if (!appointment) return null;
     return {
-       ...appointment.toObject(),
+      ...appointment.toObject(),
       id: appointment._id.toString(),
-     
+
     };
   }
 
   async findByPatientId(patientId: string): Promise<Appointment[]> {
     const appointments = await AppointmentModel.find({ patientId })
-    .populate("doctorId", "name specialization")
-    .sort({ createdAt: -1 });
+      .populate("doctorId", "name specialization")
+      .sort({ createdAt: -1 });
     return appointments.map(appointment => ({
-          ...appointment.toObject(),
+      ...appointment.toObject(),
       id: appointment._id.toString(),
-      doctor:appointment.doctorId?{
-        name:(appointment.doctorId as any).name,
-        specialization:(appointment.doctorId as any).specialization
-      }:undefined
-  
+      doctor: appointment.doctorId ? {
+        name: (appointment.doctorId as any).name,
+        specialization: (appointment.doctorId as any).specialization
+      } : undefined
+
     }));
   }
 
   async findByDoctorId(doctorId: string): Promise<Appointment[]> {
     const appointments = await AppointmentModel.find({ doctorId })
-    .populate('patientId',"name email")
-    .sort({ createdAt: -1 });
+      .populate('patientId', "name email")
+      .sort({ createdAt: -1 });
     return appointments.map(appointment => ({
-        ...appointment.toObject(),
+      ...appointment.toObject(),
       id: appointment._id.toString(),
 
-      patient:appointment.patientId?{
-        name:(appointment.patientId as any).name,
-        email:(appointment.patientId as any).email
-      }:undefined
-    
+      patient: appointment.patientId ? {
+        name: (appointment.patientId as any).name,
+        email: (appointment.patientId as any).email
+      } : undefined
+
     }));
   }
 
@@ -61,14 +60,31 @@ export class MongoAppointmentRepo implements IAppointmentRepository {
     const updated = await AppointmentModel.findByIdAndUpdate(id, updates, { new: true });
     if (!updated) return null;
     return {
-          ...updated.toObject(),
+      ...updated.toObject(),
       id: updated._id.toString(),
-  
+
     };
   }
 
   async delete(id: string): Promise<boolean> {
     const result = await AppointmentModel.findByIdAndDelete(id);
     return !!result;
+  }
+
+  async getLastAppointmentDate(doctorId: string, patientId: string): Promise<Date | null> {
+    const appointment = await AppointmentModel.findOne({ doctorId, patientId, status:{$in:['confirmed','completed']} })
+      .sort({ date: -1 })
+      .select('date');
+    return appointment ? appointment.date : null;
+  }
+  async hasUpcomingAppointment(doctorId: string, patientId: string): Promise<boolean> {
+    const now=new Date();
+    const appointment=await AppointmentModel.findOne({
+      doctorId,
+      patientId,
+      status:{$in:['pending','confirmed']},
+      date:{$gte:now}
+    })
+    return !!appointment
   }
 }

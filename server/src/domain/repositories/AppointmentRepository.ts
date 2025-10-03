@@ -8,4 +8,6 @@ export interface IAppointmentRepository {
   findByDoctorId(doctorId: string): Promise<Appointment[]>;
   update(id: string, updates: Partial<Appointment>): Promise<Appointment | null>;
   delete(id: string): Promise<boolean>;
+  getLastAppointmentDate(doctorId: string, patientId: string): Promise<Date | null>;
+ hasUpcomingAppointment(doctorId: string, patientId: string): Promise<boolean>;
 }

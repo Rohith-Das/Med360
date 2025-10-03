@@ -1,7 +1,7 @@
-
 import React, { createContext, useContext, useEffect } from 'react';
 import { socketService } from '@/features/notification/socket';
 import { useAppSelector } from '@/app/hooks';
+import { chatSocketService } from '@/services/chatSocketServer';
 
 
 interface SocketContextType {
@@ -26,16 +26,18 @@ interface SocketProviderProps {
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const { doctorAccessToken, doctor } = useAppSelector((state) => state.doctorAuth);
-  const {accessToken,patient}=useAppSelector((state)=>state.auth)
+  const { accessToken, patient } = useAppSelector((state) => state.auth)
   const [isConnected, setIsConnected] = React.useState(false);
 
-  const connect = (userId:string,role:'doctor'|'patient') => {
-    socketService.connect(userId,role);
+  const connect = (userId: string, role: 'doctor' | 'patient') => {
+    socketService.connect(userId, role);
+    chatSocketService.connect(userId, role)
     setIsConnected(true);
   };
 
   const disconnect = () => {
     socketService.disconnect();
+    chatSocketService.disconnect()
     setIsConnected(false);
   };
 
@@ -53,7 +55,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
     if (userId && role) {
       connect(userId, role);
-      
+
       // Request notification permission
       if ('Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission();

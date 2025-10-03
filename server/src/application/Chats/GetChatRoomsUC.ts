@@ -1,14 +1,32 @@
-import { inject, injectable } from 'tsyringe';
+import { injectable, inject } from 'tsyringe';
 import { IChatRepository } from '../../domain/repositories/ChatRepository';
-import { ChatRoom } from '../../domain/entities/ChatMessage.enity';
 
 @injectable()
 export class GetChatRoomsUC {
   constructor(
-    @inject('IChatRepository') private chatRepo: IChatRepository
+    @inject('IChatRepository') private chatRepository: IChatRepository
   ) {}
 
-  async execute(userId: string, userType: 'doctor' | 'patient'): Promise<ChatRoom[]> {
-    return await this.chatRepo.getChatRoomsByUserId(userId, userType);
+  async execute(userId: string, userType: 'doctor' | 'patient') {
+    const chatRooms = await this.chatRepository.getUserChatRooms(userId, userType);
+    
+    // Get unread counts for each chat room
+    const chatRoomsWithUnread = await Promise.all(
+      chatRooms.map(async (room) => {
+        const unreadCount = await this.chatRepository.getUnreadCount(
+          room.id,
+          userId,
+          userType
+        );
+
+        return {
+          ...room,
+          unreadCount,
+          isActive: room.isActive && room.expiresAt > new Date(),
+        };
+      })
+    );
+
+    return chatRoomsWithUnread;
   }
 }
