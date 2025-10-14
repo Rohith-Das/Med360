@@ -13,10 +13,12 @@ import { blockPatientController,
  import { createSpecialization,updateSpecialization,deleteSpecialization, getSpecializations } from '../controllers/adminController.ts/specializationController'
 import { upload } from '../../infrastructure/config/multerConfig'
 import { ApplicationController } from '../controllers/ApplicationController/ApplicationController'
-
+import { DashboardController } from '../controllers/DashBoard/DashBoardController'
 
 const AdminRouter=express.Router()
 const applicationController = new ApplicationController();
+const dashboardController=new DashboardController();
+
 AdminRouter.post("/register",adminRegisterController);
 
 AdminRouter.post("/login",adminLoginController)
@@ -48,4 +50,8 @@ AdminRouter.get('/applications/:id',adminAuthGuard,applicationController.getAppl
 AdminRouter.post('/applications/:id/approve',adminAuthGuard,  applicationController.approveApplicationController);
 AdminRouter.post('/applications/:id/reject', adminAuthGuard, applicationController.rejectApplication);
 AdminRouter.post('/doctors/create-from-application/:id', adminAuthGuard, upload.single('profileImage'), applicationController.createDoctorFromApplication);
+
+//appointments
+AdminRouter.get('/appointments/stats',adminAuthGuard,dashboardController.getAppointmentStats)
+AdminRouter.get('/specializations/stats', adminAuthGuard, dashboardController.getSpecializationStats);
 export default AdminRouter;

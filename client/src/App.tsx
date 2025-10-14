@@ -6,7 +6,6 @@ import Dashboard from "./pages/patientPages/Home";
 import { RegisterPage } from "./pages/patientPages/RegisterPage";
 import { VerifyOtpPage } from "./pages/patientPages/VerifyOtpPage";
 import { AdminLoginPage } from "./pages/adminPages/AdminLoginPage";
-import { AdminDashboardPage } from "./pages/adminPages/AdminDashboardPage";
 import { RequestPasswordResetPage } from "./pages/patientPages/forgotPasswordPages/RequestPasswordResetPage ";
 import { ResetPasswordPage } from "./pages/patientPages/forgotPasswordPages/ResetPasswordPage ";
 import Home from "./pages/patientPages/Home";
@@ -31,14 +30,11 @@ import WalletPage from "./pages/patientPages/WalletPage";
 import DoctorNotificationsPage from "./features/Doctor/DoctorNotificationsPage";
 import DoctorAppointments from "./pages/doctorPages/DoctorAppointmentList";
 import PatientNotificationsPage from "./pages/patientPages/PatientNotificationsPage";
-import DoctorChatPage from "./pages/chatPages/DoctorChatPage";
 import { useAppSelector } from "./app/hooks";
-import PatientChatPage from "./pages/chatPages/PatientChatPage";
+import AdminDashboardPage from "./pages/adminPages/AdminDashboardPage";
 
 function App() {
-  const { patient } = useAppSelector((state) => state.auth);
-  const { doctor } = useAppSelector((state) => state.doctorAuth);
-  const role = patient ? 'patient' : doctor ? 'doctor' : null;
+
 
   return (
     <Routes>
@@ -114,9 +110,9 @@ function App() {
  <Route path="/doctor/notifications" element={<DoctorNotificationsPage/>}/> 
   <Route path="/notifications" element={<PatientNotificationsPage/>}/> 
  <Route path="/doctor/appointments" element={<DoctorAppointments />} />
+  <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
 
-    <Route path="/chat" element={<PatientChatPage />} />
-<Route path="/doctor/chat" element={<DoctorChatPage />} />
+
      
     </Routes>
   );

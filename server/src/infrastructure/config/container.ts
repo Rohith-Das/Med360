@@ -84,12 +84,10 @@ import { ChatBotUC } from "../../application/ai/chatbotUseCase";
 import { VideoCallUseCase } from "../../application/videoCall/VideoCallUC";
 import { GetDoctorAppointmentUC } from "../../application/Appointment/GetDoctorsAppointmentUC";
 import { IChatRepository } from "../../domain/repositories/ChatRepository";
-import { MongoChatRepository } from "../database/repositores/MongoChatRepository";
-import { createOrChatRoomUC } from "../../application/Chats/CreateOrGetChatRoomUC";
-import { SendMessageUC } from "../../application/Chats/SendMessageUC";
-import { GetMessagesUC } from "../../application/Chats/GetMessagesUC";
-import { GetChatRoomsUC } from "../../application/Chats/GetChatRoomsUC";
-import { MarkMessagesReadUC } from "../../application/Chats/MarkMessagesReadUC";
+import { MongoDashboardRepo } from "../database/repositores/MongoDashboardRepo";
+import { IDashboardRepository } from "../../domain/repositories/DashboardRepository";
+import { DashBoardUC } from "../../application/DashBoard/DashboardUC";
+
 // Database
 container.registerSingleton(mongoDBClient);
 
@@ -104,7 +102,6 @@ container.register<IPaymentRepository>('IPaymentRepository', MongoPaymentReposit
 container.register<IAppointmentRepository>('IAppointmentRepository', MongoAppointmentRepo);
 container.register<IWalletRepository>('IWalletRepository', MongoWalletRepo);
 container.register<INotificationRepository>('INotificationRepository', MongoNotificationRepository);
-container.register<IChatRepository>('IChatRepository',MongoChatRepository)
 // Services
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
@@ -178,16 +175,12 @@ container.registerSingleton(MarkAllNotificationsReadUC);
 container.registerSingleton(NotificationService);
 container.registerSingleton(ChatBotUC);
 
+/// dashboard
 
+container.register<IDashboardRepository>('IDashboardRepository',{
+    useClass:MongoDashboardRepo
+})
+container.registerSingleton(DashBoardUC)
 
-container.register('IChatRepository', {
-  useClass: MongoChatRepository,
-});
-
-container.register('CreateOrGetChatRoomUC', { useClass: createOrChatRoomUC });
-container.register('SendMessageUC', { useClass: SendMessageUC });
-container.register('GetMessagesUC', { useClass: GetMessagesUC });
-container.register('MarkMessagesReadUC', { useClass: MarkMessagesReadUC });
-container.register('GetChatRoomsUC', { useClass: GetChatRoomsUC });
 
 export {container}

@@ -17,9 +17,7 @@ import ScheduleRouter from "./presentation/routes/ScheduleRoutes";
 import PaymentRouter from "./presentation/routes/PaymentRoutes";
 import VideoCallRouter from "./presentation/routes/VideoCallRoutes";
 import { initializeSocketServer } from "./infrastructure/socket/socketServer";
-import { initializeChatSocketServer } from "./infrastructure/socket/chatSocketServer";
-import { success } from "zod";
-import ChatRouter from "./presentation/routes/chatRoutes";
+
 
 export const startServer = async () => {
  
@@ -27,7 +25,7 @@ export const startServer = async () => {
   const app = express();
   const httpServer=createServer(app)
   const socketServer=initializeSocketServer(httpServer)
-  const chatSocketServer=initializeChatSocketServer(httpServer)
+
   app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true, 
@@ -52,13 +50,13 @@ export const startServer = async () => {
  app.use("/api/doctor", DoctorRouter);
 app.use('/api/schedules', ScheduleRouter);
 app.use("/api/payment", PaymentRouter);
-app.use('/api/videocall',VideoCallRouter)
-app.use("/api/chat", ChatRouter);
+app.use('/api/videocall', VideoCallRouter);
+
 
 
 app.get('/api/socket-status',(req,res)=>{
   const mainStats=socketServer.getSocketStats();
-  const chatStats=chatSocketServer.getChatStats();
+
 
   res.json({
     success:true,
@@ -66,10 +64,6 @@ app.get('/api/socket-status',(req,res)=>{
       socket:{
         ...mainStats,
         path:'/socket.io'
-      },
-      chatSocket:{
-        ...chatStats,
-        path:'/chat-socket'
       },
       timestamp:new Date().toISOString()
     }
@@ -83,7 +77,5 @@ app.use(express.static(path.join(__dirname, '../../client/build')));
   httpServer.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
     console.log(`Main Socket.IO server: http://localhost:${PORT}/socket.io`);
-    console.log(`Chat Socket.IO server: http://localhost:${PORT}/chat-socket`);
-    console.log(`Socket status: http://localhost:${PORT}/api/socket-status`);
   });
 };

@@ -7,8 +7,6 @@ export interface ChatRoom {
   patientId: string|mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
-  expiresAt: Date;
-  isActive: boolean;
   lastAppointmentDate: Date;
 }
 

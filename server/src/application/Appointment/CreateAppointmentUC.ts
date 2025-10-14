@@ -3,7 +3,7 @@ import { IAppointmentRepository } from '../../domain/repositories/AppointmentRep
 import { Appointment } from '../../domain/entities/Appointment.entiry';
 import { IScheduleRepository } from '../../domain/repositories/ScheduleRepository-method';
 import { NotificationService } from '../notification/NotificationService';
-import { createOrChatRoomUC } from '../Chats/CreateOrGetChatRoomUC';
+
 
 interface CreateAppointmentInput {
   patientId: string;
@@ -22,7 +22,6 @@ export class CreateAppointmentUC {
   constructor(
     @inject('IAppointmentRepository') private appointmentRepo: IAppointmentRepository,
     @inject('IScheduleRepository') private scheduleRepo: IScheduleRepository,
-    @inject('CreateOrGetChatRoomUC') private createOrGetChatRoomUuseCase: createOrChatRoomUC,
     private notificationService: NotificationService
   ) {}
 
@@ -71,13 +70,7 @@ export class CreateAppointmentUC {
       });
 
       // ✅ Create or update chat room
-      const chatRoomResult = await this.createOrGetChatRoomUuseCase.execute({
-        doctorId: input.doctorId,
-        patientId: input.patientId,
-        appointmentDate: input.date
-      });
-
-      console.log(`Chat room ${chatRoomResult.isNew ? 'created' : 'updated'}: ${chatRoomResult.chatRoomId}`);
+   
 
       // Send notification
       await this.notificationService.sendAppointmentBookedNotification({

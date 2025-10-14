@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect } from 'react';
 import { socketService } from '@/features/notification/socket';
 import { useAppSelector } from '@/app/hooks';
-import { chatSocketService } from '@/services/chatSocketServer';
 
 
 interface SocketContextType {
@@ -31,13 +30,13 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
   const connect = (userId: string, role: 'doctor' | 'patient') => {
     socketService.connect(userId, role);
-    chatSocketService.connect(userId, role)
+   
     setIsConnected(true);
   };
 
   const disconnect = () => {
     socketService.disconnect();
-    chatSocketService.disconnect()
+
     setIsConnected(false);
   };
 

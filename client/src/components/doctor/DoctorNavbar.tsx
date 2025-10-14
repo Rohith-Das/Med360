@@ -5,6 +5,11 @@ import { MdDashboard } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch,useAppSelector } from '@/app/hooks';
 import { fetchUnreadCount } from '@/features/notification/notificationSlice';
+import { NavLink } from 'react-router-dom';
+
+
+
+
 const DoctorNavbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -52,12 +57,12 @@ const DoctorNavbar = () => {
   };
 
   // Navigation items
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: <MdDashboard className="text-lg" /> },
-    { name: 'Schedules', path: '/doctor/time-slots', icon: <FaCalendarAlt className="text-lg" /> },
-    { name: 'Appointments', path: '/doctor/appointments', icon: <FaCalendarAlt className="text-lg" /> },
-    { name: 'Profile', path: 'profile', icon: <FaUserCircle className="text-lg" /> },
-  ];
+ const navItems = [
+  { name: 'Dashboard', path: '/dashboard', icon: <MdDashboard className="text-lg" /> },
+  { name: 'Schedules', path: '/doctor/time-slots', icon: <FaCalendarAlt className="text-lg" /> },
+  { name: 'Appointments', path: '/doctor/appointments', icon: <FaCalendarAlt className="text-lg" /> },
+  { name: 'Profile', path: '/doctor/profile', icon: <FaUserCircle className="text-lg" /> }, // Fixed path to include /doctor
+];
 
   return (
     <nav
@@ -76,9 +81,9 @@ const DoctorNavbar = () => {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
-              <a
+              <NavLink
                 key={item.path}
-                href={`${item.path}`}
+                to={`${item.path}`}
                 onClick={() => handleLinkClick(item.path)}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
                   activeLink === item.path
@@ -88,7 +93,7 @@ const DoctorNavbar = () => {
               >
                 {item.icon}
                 <span>{item.name}</span>
-              </a>
+              </NavLink>
             ))}
             
             {/* Notification Bell */}
@@ -145,9 +150,9 @@ const DoctorNavbar = () => {
           <div className="container mx-auto px-4 py-6">
             <div className="flex flex-col space-y-4">
               {navItems.map((item) => (
-                <a
+                <NavLink
                   key={item.path}
-                  href={`${item.path}`}
+                  to={`${item.path}`}
                   onClick={() => handleLinkClick(item.path)}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-lg ${
                     activeLink === item.path
@@ -157,7 +162,7 @@ const DoctorNavbar = () => {
                 >
                   {item.icon}
                   <span>{item.name}</span>
-                </a>
+                </NavLink>
               ))}
               
               {/* Mobile Notifications Link */}

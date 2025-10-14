@@ -6,7 +6,7 @@ import { doctorAuthGuard } from '../middlewares/DoctorAuthGuard';
 
 const VideoCallRouter = express.Router();
 const videoCallController = new VideoCallController();
-
+console.log('✅ VideoCallRoutes loaded');
 // Patient routes
 VideoCallRouter.post('/initiate', authGuard, videoCallController.initiateCall);
 VideoCallRouter.post('/join/:roomId', authGuard, videoCallController.joinCall);

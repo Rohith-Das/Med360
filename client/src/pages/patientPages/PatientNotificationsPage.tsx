@@ -1,3 +1,4 @@
+// client/src/pages/patientPages/PatientNotificationsPage.tsx
 import React, { useEffect, useState } from 'react';
 import { FaBell, FaCalendarCheck, FaCalendarTimes, FaEye, FaArrowLeft, FaVideo } from 'react-icons/fa';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
@@ -25,8 +26,12 @@ interface IncomingCallData {
 const PatientNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { notifications, loading, error, unreadCount } = useAppSelector((state) => state.notifications);
+  
+  // Get data from Redux - incomingCallsData is now a plain object
+  const { notifications, loading, error, unreadCount, incomingCallsData } = useAppSelector((state) => state.notifications);
   const { isConnected } = useSocket();
+  const { patient } = useAppSelector((state) => state.auth);
+  
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [showVideoCall, setShowVideoCall] = useState<{ 
@@ -37,11 +42,10 @@ const PatientNotificationsPage: React.FC = () => {
     isIncoming?: boolean;
   }>({ active: false });
   
-  // Store incoming call data from socket - using Map for multiple calls
-  const [incomingCallsData, setIncomingCallsData] = useState<Map<string, IncomingCallData>>(new Map());
-  
   const itemsPerPage = 10;
-  const { patient } = useAppSelector((state) => state.auth);
+  
+  // Calculate incoming calls count from Redux object
+  const incomingCallsCount = Object.keys(incomingCallsData).length;
 
   useEffect(() => {
     dispatch(fetchNotifications({ 
@@ -60,15 +64,8 @@ const PatientNotificationsPage: React.FC = () => {
       const data = (event as CustomEvent).detail as IncomingCallData;
       console.log('🔔 Incoming video call received:', data);
       
-      // Store the complete call data using appointmentId as key
-      setIncomingCallsData(prev => {
-        const newMap = new Map(prev);
-        newMap.set(data.appointmentId, data);
-        console.log('📦 Stored call data for appointment:', data.appointmentId);
-        return newMap;
-      });
-      
-      // Show toast with accept action
+      // Data is already stored in Redux via socket service
+      // Just show the toast notification
       toast.info(`Incoming call from Dr. ${data.initiatorName || 'Doctor'}`, {
         position: "top-right",
         autoClose: 15000,
@@ -88,18 +85,6 @@ const PatientNotificationsPage: React.FC = () => {
     const handleCallEnded = (event: Event) => {
       const data = (event as CustomEvent).detail;
       console.log('📞 Call ended event received:', data);
-      // Remove from stored calls
-      setIncomingCallsData(prev => {
-        const newMap = new Map(prev);
-        // Find and remove by roomId
-        for (const [appointmentId, callData] of newMap.entries()) {
-          if (callData.roomId === data.roomId) {
-            newMap.delete(appointmentId);
-            break;
-          }
-        }
-        return newMap;
-      });
       
       if (showVideoCall.active) {
         setShowVideoCall({ active: false });
@@ -155,13 +140,6 @@ const PatientNotificationsPage: React.FC = () => {
       console.error('💥 Error in acceptVideoCall:', error);
       const errorMessage = error.response?.data?.message || 'Failed to join call';
       toast.error(errorMessage);
-      
-      // If join fails, remove from stored calls
-      setIncomingCallsData(prev => {
-        const newMap = new Map(prev);
-        newMap.delete(appointmentId);
-        return newMap;
-      });
     }
   };
 
@@ -188,8 +166,8 @@ const PatientNotificationsPage: React.FC = () => {
           return;
         }
         
-        // Check if we have stored socket data for this appointment
-        const storedCallData = incomingCallsData.get(appointmentId);
+        // Check Redux object for stored call data
+        const storedCallData = incomingCallsData[appointmentId];
         
         if (storedCallData) {
           console.log('📞 Using stored socket call data:', storedCallData);
@@ -207,7 +185,7 @@ const PatientNotificationsPage: React.FC = () => {
           );
         } else {
           console.warn('⚠️ No socket data found for appointment:', appointmentId);
-          console.log('📋 Available stored calls:', Array.from(incomingCallsData.keys()));
+          console.log('📋 Available stored calls:', Object.keys(incomingCallsData));
           
           // Try to use notification data if available (fallback)
           if (notification.data?.roomId) {
@@ -260,10 +238,10 @@ const PatientNotificationsPage: React.FC = () => {
     const { data } = notification;
     if (!data) return null;
 
-    // Check if this notification has corresponding socket data
+    // Check Redux object for call data availability
     const hasCallData = notification.type === 'video_call_initiated' && 
       data.appointmentId && 
-      incomingCallsData.has(data.appointmentId);
+      data.appointmentId in incomingCallsData;
 
     return (
       <div className="mt-2 text-sm text-gray-600">
@@ -336,10 +314,10 @@ const PatientNotificationsPage: React.FC = () => {
                 <p className="text-gray-600 mt-2">
                   {unreadCount > 0 ? `You have ${unreadCount} unread notifications` : 'All caught up!'}
                 </p>
-                {incomingCallsData.size > 0 && (
+                {incomingCallsCount > 0 && (
                   <div className="mt-2 p-2 bg-green-100 border border-green-300 rounded">
                     <p className="text-green-800 text-sm font-medium">
-                      📞 {incomingCallsData.size} active call(s) available
+                      📞 {incomingCallsCount} active call(s) available
                     </p>
                   </div>
                 )}
@@ -374,12 +352,12 @@ const PatientNotificationsPage: React.FC = () => {
               </div>
             ) : (
               notifications.map((notification) => {
-                // Enhanced check for call data availability
+                // Check Redux object for call data availability
                 const hasCallData = notification.type === 'video_call_initiated' && 
                   notification.data?.appointmentId && 
-                  incomingCallsData.has(notification.data.appointmentId);
+                  notification.data.appointmentId in incomingCallsData;
 
-                const callData = hasCallData ? incomingCallsData.get(notification.data!.appointmentId!) : null;
+                const callData = hasCallData ? incomingCallsData[notification.data!.appointmentId!] : null;
 
                 return (
                   <div key={notification.id} className={`bg-white rounded-lg shadow-sm border transition-all hover:shadow-md ${!notification.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50' : ''}`}>

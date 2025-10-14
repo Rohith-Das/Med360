@@ -8,6 +8,7 @@ const NotificationSchema = new Schema<Notification>(
       enum: ['doctor', 'patient', 'admin'], 
       required: true 
     },
+    
     senderId: { type: String },
     senderType: { 
       type: String, 
@@ -43,7 +44,8 @@ const NotificationSchema = new Schema<Notification>(
       patientName: String,
       specialization: String,
       consultationFee: Number,
-      refundAmount: Number
+      refundAmount: Number,
+      roomId: String
     },
     isRead: { type: Boolean, default: false, index: true },
     priority: {

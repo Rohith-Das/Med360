@@ -358,15 +358,16 @@ export class SocketServer {
     return false;
   }
 
-  public sendToPatient(patientId: string, event: string, data: any): boolean {
+ public sendToPatient(patientId: string, event: string, data: any): boolean {
     const socketId = this.patientSockets.get(patientId);
     if (socketId) {
       this.io.to(socketId).emit(event, data);
-      console.log(`Event ${event} sent to patient ${patientId}`);
+      console.log(`Event ${event} sent to patient ${patientId} (socket ${socketId})`);
       return true;
     }
+    console.log(`Patient ${patientId} not connected - event ${event} not sent`);
     return false;
-  }
+}
 
   public broadcastToRole(role: 'doctor' | 'patient' | 'admin', event: string, data: any): void {
     this.io.to(role).emit(event, data);

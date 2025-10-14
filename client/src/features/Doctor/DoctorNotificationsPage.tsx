@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+// client/src/features/Doctor/DoctorNotificationsPage.tsx
+import React, { useEffect, useState, useCallback } from 'react';
 import { FaBell, FaCalendarCheck, FaCalendarTimes, FaEye, FaArrowLeft, FaVideo } from 'react-icons/fa';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchNotifications, markNotificationAsRead, Notification } from '../../features/notification/notificationSlice';
@@ -10,17 +11,78 @@ import doctorAxiosInstance from '@/api/doctorAxiosInstance';
 import { toast } from 'react-toastify';
 import { socketService } from '../notification/socket';
 
+interface IncomingCallData {
+  roomId: string;
+  appointmentId: string;
+  initiatorName: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  callType: string;
+  initiatorRole: string;
+  initiatorId: string;
+}
+
 const DoctorNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { notifications, loading, error, unreadCount } = useAppSelector((state) => state.notifications);
+  const { notifications, loading, error, unreadCount, incomingCallsData } = useAppSelector((state) => state.notifications);
   const { isConnected } = useSocket();
-  const {doctor}=useAppSelector((state)=>state.doctorAuth)
+  const { doctor } = useAppSelector((state) => state.doctorAuth);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showVideoCall, setShowVideoCall] = useState<{ active: boolean; roomId?: string; appointmentId?: string; callerName?: string }>({ active: false });
+  const [showVideoCall, setShowVideoCall] = useState<{ 
+    active: boolean; 
+    roomId?: string; 
+    appointmentId?: string; 
+    callerName?: string;
+    isIncoming?: boolean;
+  }>({ active: false });
   const itemsPerPage = 10;
 
+  const incomingCallsCount = Object.keys(incomingCallsData).length;
+
+  // Memoized acceptVideoCall to prevent recreation
+  const acceptVideoCall = useCallback(async (
+    roomId: string, 
+    appointmentId: string, 
+    callerName: string, 
+    isIncoming: boolean = false
+  ) => {
+    try {
+      console.log('🔄 Starting acceptVideoCall:', { roomId, appointmentId, callerName, isIncoming });
+      
+      const response = await doctorAxiosInstance.post(`/videocall/doctor/join/${roomId}`);
+      console.log('📡 API Response:', response.data);
+      
+      if (response.data.success) {
+        console.log('✅ API call successful, setting up video call');
+        
+        setShowVideoCall({ 
+          active: true, 
+          roomId, 
+          appointmentId, 
+          callerName,
+          isIncoming 
+        });
+        
+        console.log('🔌 Joining video room via socket');
+        socketService.joinVideoRoom(roomId, {
+          appointmentId,
+          userId: doctor?.id,
+          userRole: 'doctor',
+          userName: doctor?.name || 'Doctor'
+        });
+        
+        toast.success('Joined video call successfully!');
+      }
+    } catch (error: any) {
+      console.error('💥 Error in acceptVideoCall:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to join call';
+      toast.error(errorMessage);
+    }
+  }, [doctor?.id, doctor?.name]);
+
+  // Fetch notifications on mount and filter change
   useEffect(() => {
     dispatch(fetchNotifications({ 
       limit: itemsPerPage, 
@@ -30,43 +92,139 @@ const DoctorNotificationsPage: React.FC = () => {
     }));
   }, [dispatch, currentPage, filter]);
 
-  // Listen for incoming calls
+  // Socket event handling
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected) {
+      console.warn('⚠️ Socket not connected, skipping event listeners');
+      return;
+    }
 
-    const handleIncomingCall = (data: any) => {
-      console.log('Incoming video call:', data);
+    console.log('🔌 Setting up socket event listeners');
+
+    const handleIncomingCall = (event: Event) => {
+      const data = (event as CustomEvent).detail as IncomingCallData;
+      console.log('🔔 Incoming video call received:', data);
+      
+      // Validate required fields
+      if (!data.roomId || !data.appointmentId) {
+        console.error('❌ Invalid call data:', data);
+        toast.error('Invalid video call data received');
+        return;
+      }
+
+      // Show toast notification with click handler
       toast.info(`Incoming call from ${data.initiatorName || 'Patient'}`, {
         position: "top-right",
-        autoClose: false,
-        onClick: () => acceptVideoCall(data.roomId, data.appointmentId, data.initiatorName || 'Patient')
+        autoClose: 15000,
+        closeOnClick: true,
+        onClick: () => {
+          console.log('🎯 Toast clicked - accepting call');
+          acceptVideoCall(data.roomId, data.appointmentId, data.initiatorName || 'Patient', true);
+        }
       });
+
+      // Play notification sound (optional)
+      const audio = new Audio('/notification-sound.mp3');
+      audio.play().catch(e => console.log('Audio play failed:', e));
     };
 
-    window.addEventListener('incoming_video_call', handleIncomingCall);
-    return () => window.removeEventListener('incoming_video_call', handleIncomingCall);
-  }, [isConnected]);
+    const handleAcceptCall = (event: Event) => {
+      const data = (event as CustomEvent).detail;
+      console.log('✅ Accept call event received:', data);
+      acceptVideoCall(data.roomId, data.appointmentId, data.initiatorName, true);
+    };
 
-  const acceptVideoCall = async (roomId: string, appointmentId: string, callerName: string) => {
+    const handleCallEnded = (event: Event) => {
+      const data = (event as CustomEvent).detail;
+      console.log('📞 Call ended event received:', data);
+      
+      if (showVideoCall.active) {
+        setShowVideoCall({ active: false });
+        toast.info('Video call has ended');
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('incoming_video_call', handleIncomingCall);
+    window.addEventListener('accept_video_call', handleAcceptCall);
+    window.addEventListener('video_call_ended', handleCallEnded);
+    
+    console.log('✅ Socket event listeners registered');
+
+    // Cleanup
+    return () => {
+      console.log('🧹 Cleaning up socket event listeners');
+      window.removeEventListener('incoming_video_call', handleIncomingCall);
+      window.removeEventListener('accept_video_call', handleAcceptCall);
+      window.removeEventListener('video_call_ended', handleCallEnded);
+    };
+  }, [isConnected, showVideoCall.active, acceptVideoCall]);
+
+  const handleMarkAsRead = async (notificationId: string) => {
     try {
-      const response = await doctorAxiosInstance.post(`/videocall/doctor/join/${roomId}`);
-      if (response.data.success) {
-        setShowVideoCall({ active: true, roomId, appointmentId, callerName });
-socketService.joinVideoRoom(roomId, { appointmentId, userId: doctor?.id, userRole: 'doctor', userName: doctor?.name || 'Doctor' })}
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to join call');
+      await dispatch(markNotificationAsRead({ notificationId, role: "doctor" }));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
     }
   };
 
-  const handleMarkAsRead = (notificationId: string) => {
-    dispatch(markNotificationAsRead({ notificationId, role: "doctor" }));
-  };
+  const handleJoinCall = async (notification: Notification) => {
+    console.log('🎯 handleJoinCall called with notification:', notification);
+    
+    if (notification.type !== 'video_call_initiated') {
+      console.error('❌ Invalid notification type:', notification.type);
+      toast.error('Invalid video call notification');
+      return;
+    }
 
- const handleJoinCall = (notification: Notification) => {
-  if (notification.type === 'video_call_initiated' && notification.data?.roomId && notification.data?.appointmentId) {
-    acceptVideoCall(notification.data.roomId, notification.data.appointmentId, notification.title);
-  }
-};
+    try {
+      const appointmentId = notification.data?.appointmentId;
+      
+      if (!appointmentId) {
+        console.error('❌ No appointment ID in notification');
+        toast.error('Invalid notification - missing appointment ID');
+        return;
+      }
+      
+      // Check Redux for stored socket data
+      const storedCallData = incomingCallsData[appointmentId];
+      
+      if (storedCallData) {
+        console.log('📞 Using stored socket call data:', storedCallData);
+        
+        // Mark notification as read
+        await handleMarkAsRead(notification.id);
+        
+        // Join the call
+        await acceptVideoCall(
+          storedCallData.roomId,
+          storedCallData.appointmentId,
+          storedCallData.initiatorName || 'Patient',
+          false
+        );
+      } else {
+        console.warn('⚠️ No socket data found for appointment:', appointmentId);
+        
+        // Fallback: try using notification data
+        if (notification.data?.roomId) {
+          console.log('🔄 Using notification roomId as fallback');
+          await handleMarkAsRead(notification.id);
+          await acceptVideoCall(
+            notification.data.roomId,
+            appointmentId,
+            notification.data.initiatorName || 'Patient',
+            false
+          );
+        } else {
+          toast.error('Call data not available. Please wait for the incoming call notification or refresh the page.');
+          console.log('💡 Suggestion: Refresh notifications to sync call data');
+        }
+      }
+    } catch (error) {
+      console.error('💥 Error in handleJoinCall:', error);
+      toast.error('Failed to join call from notification');
+    }
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -95,6 +253,10 @@ socketService.joinVideoRoom(roomId, { appointmentId, userId: doctor?.id, userRol
     const { data } = notification;
     if (!data) return null;
 
+    const hasCallData = notification.type === 'video_call_initiated' && 
+      data.appointmentId && 
+      data.appointmentId in incomingCallsData;
+
     return (
       <div className="mt-2 text-sm text-gray-600">
         {data.appointmentDate && (
@@ -112,23 +274,27 @@ socketService.joinVideoRoom(roomId, { appointmentId, userId: doctor?.id, userRol
         {data.cancelReason && (
           <p><strong>Cancel Reason:</strong> {data.cancelReason}</p>
         )}
-        {data.roomId && (
-          <p><strong>Room ID:</strong> {data.roomId}</p>
+        {hasCallData && (
+          <p className="text-green-600 font-medium">✅ Ready to join call</p>
+        )}
+        {notification.type === 'video_call_initiated' && !hasCallData && (
+          <p className="text-amber-600 font-medium">⏳ Waiting for call data...</p>
         )}
       </div>
     );
   };
 
+  // Show video call component if active
   if (showVideoCall.active) {
     return (
       <VideoCall
         roomId={showVideoCall.roomId}
         appointmentId={showVideoCall.appointmentId || ''}
         userRole="doctor"
-        userName="Doctor Name"
-        userId="doctor-id"
+        userName={doctor?.name || "Doctor"}
+        userId={doctor?.id || "doctor-id"}
         onCallEnd={() => setShowVideoCall({ active: false })}
-        isIncoming={true}
+        isIncoming={showVideoCall.isIncoming || false}
         callerName={showVideoCall.callerName}
       />
     );
@@ -167,6 +333,21 @@ socketService.joinVideoRoom(roomId, { appointmentId, userId: doctor?.id, userRol
                 <p className="text-gray-600 mt-2">
                   {unreadCount > 0 ? `You have ${unreadCount} unread notifications` : 'All caught up!'}
                 </p>
+                {incomingCallsCount > 0 && (
+                  <div className="mt-2 p-3 bg-green-50 border-l-4 border-green-500 rounded">
+                    <p className="text-green-800 text-sm font-semibold flex items-center">
+                      <FaVideo className="mr-2" />
+                      {incomingCallsCount} active call{incomingCallsCount > 1 ? 's' : ''} available to join
+                    </p>
+                  </div>
+                )}
+                {!isConnected && (
+                  <div className="mt-2 p-3 bg-yellow-50 border-l-4 border-yellow-500 rounded">
+                    <p className="text-yellow-800 text-sm font-medium">
+                      ⚠️ Real-time notifications disconnected. Refresh to reconnect.
+                    </p>
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center space-x-4">
@@ -215,67 +396,80 @@ socketService.joinVideoRoom(roomId, { appointmentId, userId: doctor?.id, userRol
                 </p>
               </div>
             ) : (
-              notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`bg-white rounded-lg shadow-sm border transition-all hover:shadow-md ${
-                    !notification.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50' : ''
-                  }`}
-                >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-4 flex-1">
-                        <div className="flex-shrink-0 mt-1">
-                          {getNotificationIcon(notification.type)}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-medium text-gray-900">
-                              {notification.title}
-                            </h3>
-                            {!notification.isRead && (
-                              <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                                New
-                              </span>
-                            )}
+              notifications.map((notification) => {
+                const hasCallData = notification.type === 'video_call_initiated' && 
+                  notification.data?.appointmentId && 
+                  notification.data.appointmentId in incomingCallsData;
+
+                return (
+                  <div
+                    key={notification.id}
+                    className={`bg-white rounded-lg shadow-sm border transition-all hover:shadow-md ${
+                      !notification.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50' : ''
+                    }`}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-4 flex-1">
+                          <div className="flex-shrink-0 mt-1">
+                            {getNotificationIcon(notification.type)}
                           </div>
                           
-                          <p className="text-gray-700 mt-1">
-                            {notification.message}
-                          </p>
-                          
-                          {getNotificationDetails(notification)}
-                          
-                          <p className="text-sm text-gray-500 mt-3">
-                            {formatDate(notification.createdAt)}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h3 className="text-lg font-medium text-gray-900">
+                                {notification.title}
+                              </h3>
+                              {!notification.isRead && (
+                                <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                                  New
+                                </span>
+                              )}
+                            </div>
+                            
+                            <p className="text-gray-700 mt-1">
+                              {notification.message}
+                            </p>
+                            
+                            {getNotificationDetails(notification)}
+                            
+                            <p className="text-sm text-gray-500 mt-3">
+                              {formatDate(notification.createdAt)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        {notification.type === 'video_call_initiated' && (
-                          <button
-                            onClick={() => handleJoinCall(notification)}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                          >
-                            Join Call
-                          </button>
-                        )}
-                        {!notification.isRead && (
-                          <button
-                            onClick={() => handleMarkAsRead(notification.id)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Mark as read"
-                          >
-                            <FaEye className="h-4 w-4" />
-                          </button>
-                        )}
+                        
+                        <div className="flex items-center space-x-2 ml-4">
+                          {notification.type === 'video_call_initiated' && (
+                            <button
+                              onClick={() => handleJoinCall(notification)}
+                              disabled={!hasCallData || loading}
+                              className={`px-4 py-2 rounded-lg transition-all text-sm font-medium flex items-center gap-2 ${
+                                hasCallData 
+                                  ? 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg' 
+                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              }`}
+                              title={hasCallData ? 'Join Call' : 'Waiting for call data...'}
+                            >
+                              <FaVideo />
+                              {loading ? 'Joining...' : hasCallData ? 'Join Call' : 'Waiting...'}
+                            </button>
+                          )}
+                          {!notification.isRead && (
+                            <button
+                              onClick={() => handleMarkAsRead(notification.id)}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Mark as read"
+                            >
+                              <FaEye className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

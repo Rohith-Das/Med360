@@ -29,12 +29,6 @@ interface Participant {
   isSharingScreen: boolean;
 }
 
-interface VideoCallSession {
-  roomId: string;
-  participants: Participant[];
-  participantsCount: number;
-}
-
 const VideoCall: React.FC<VideoCallProps> = ({
   roomId: initialRoomId,
   appointmentId,
@@ -62,9 +56,12 @@ const VideoCall: React.FC<VideoCallProps> = ({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const iceCandidatesQueue = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  const isProcessingOffer = useRef<Map<string, boolean>>(new Map());
+  const socketRef = useRef<Socket | null>(null);
 
   const navigate = useNavigate();
 
@@ -73,8 +70,11 @@ const VideoCall: React.FC<VideoCallProps> = ({
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' }
-    ]
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' }
+    ],
+    iceCandidatePoolSize: 10
   };
 
   const getAuthToken = () => {
@@ -86,7 +86,320 @@ const VideoCall: React.FC<VideoCallProps> = ({
     return userRole === 'doctor' ? doctorAxiosInstance : axiosInstance;
   };
 
-  // Initialize Socket.IO with enhanced error handling
+  // Media initialization with better error handling
+  const initializeMedia = useCallback(async () => {
+    try {
+      console.log('🎥 Initializing media devices...');
+      const constraints = {
+        video: {
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, max: 30 }
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
+      
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+      
+      console.log('✅ Local stream initialized:', {
+        id: stream.id,
+        videoTracks: stream.getVideoTracks().length,
+        audioTracks: stream.getAudioTracks().length
+      });
+      
+      setError(null);
+      return stream;
+    } catch (err: any) {
+      console.error('❌ Error accessing media devices:', err);
+      let errorMessage = 'Failed to access camera or microphone';
+      
+      if (err.name === 'NotFoundError') {
+        errorMessage = 'No camera or microphone found';
+      } else if (err.name === 'NotAllowedError') {
+        errorMessage = 'Camera and microphone access denied';
+      } else if (err.name === 'NotReadableError') {
+        errorMessage = 'Camera or microphone is already in use';
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
+      throw err;
+    }
+  }, []);
+
+  // Enhanced peer connection creation
+  const createPeerConnection = useCallback((socketId: string, targetUserId: string, isInitiator: boolean = false) => {
+    // Don't create connection for our own socket
+    if (socketId === socketRef.current?.id) {
+      console.log('⚠️ Skipping peer connection to self');
+      return null;
+    }
+
+    // Check if connection already exists
+    if (peerConnections.current.has(socketId)) {
+      console.log(`♻️ Reusing existing peer connection for ${socketId}`);
+      return peerConnections.current.get(socketId)!;
+    }
+
+    console.log(`🔗 Creating ${isInitiator ? 'INITIATOR' : 'RECEIVER'} peer connection for socket: ${socketId}`);
+    const pc = new RTCPeerConnection(rtcConfiguration);
+    peerConnections.current.set(socketId, pc);
+
+    // Add local tracks FIRST before any signaling
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        console.log(`➕ Adding ${track.kind} track to peer connection ${socketId}`);
+        pc.addTrack(track, localStreamRef.current!);
+      });
+    }
+
+    // ICE candidate handling
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        console.log(`🧊 Sending ICE candidate to ${socketId}`);
+        socketRef.current?.emit('video:ice-candidate', {
+          roomId,
+          candidate: event.candidate.toJSON(),
+          targetSocketId: socketId
+        });
+      }
+    };
+
+    // Remote stream handling - CRITICAL FIX
+    pc.ontrack = (event) => {
+      console.log(`📹 Received ${event.track.kind} track from ${socketId}`, {
+        streamId: event.streams[0]?.id,
+        trackId: event.track.id
+      });
+      
+      if (event.streams && event.streams[0]) {
+        const remoteStream = event.streams[0];
+        
+        // Update or create remote stream
+        if (!remoteStreamRef.current) {
+          remoteStreamRef.current = remoteStream;
+        } else {
+          // Add new tracks to existing stream
+          remoteStream.getTracks().forEach(track => {
+            if (!remoteStreamRef.current!.getTracks().find(t => t.id === track.id)) {
+              remoteStreamRef.current!.addTrack(track);
+            }
+          });
+        }
+        
+        // Attach to video element
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = remoteStreamRef.current;
+          console.log('✅ Remote stream attached to video element');
+        }
+      }
+    };
+
+    // Connection state monitoring
+    pc.oniceconnectionstatechange = () => {
+      console.log(`🔌 ICE connection state for ${socketId}: ${pc.iceConnectionState}`);
+      
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        setConnectionState('connected');
+        console.log('✅ Peer connection established successfully');
+      } else if (pc.iceConnectionState === 'disconnected') {
+        setConnectionState('disconnected');
+        console.warn('⚠️ Peer connection disconnected');
+      } else if (pc.iceConnectionState === 'failed') {
+        console.error('❌ Peer connection failed');
+        setConnectionState('failed');
+        
+        // Attempt ICE restart
+        console.log('🔄 Attempting ICE restart...');
+        pc.restartIce();
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      console.log(`🔗 Connection state for ${socketId}: ${pc.connectionState}`);
+    };
+
+    pc.onsignalingstatechange = () => {
+      console.log(`📡 Signaling state for ${socketId}: ${pc.signalingState}`);
+    };
+
+    // Negotiation needed handler
+    pc.onnegotiationneeded = async () => {
+      if (isInitiator && pc.signalingState === 'stable') {
+        console.log(`🤝 Negotiation needed for ${socketId}, creating offer...`);
+        try {
+          const offer = await pc.createOffer({
+            offerToReceiveAudio: true,
+            offerToReceiveVideo: true
+          });
+          await pc.setLocalDescription(offer);
+          
+          socketRef.current?.emit('video:offer', {
+            roomId,
+            offer: pc.localDescription,
+            targetSocketId: socketId
+          });
+          console.log('📤 Sent offer to', socketId);
+        } catch (error) {
+          console.error('❌ Error in negotiation:', error);
+        }
+      }
+    };
+
+    return pc;
+  }, [roomId]);
+
+  // WebRTC signaling handlers
+  const handleOffer = useCallback(async (data: { 
+    offer: RTCSessionDescriptionInit; 
+    fromSocketId: string; 
+    fromUserId: string; 
+    fromUserName: string; 
+    fromUserRole: string 
+  }) => {
+    console.log('📥 Received offer from:', data.fromSocketId);
+    
+    // Prevent processing duplicate offers
+    if (isProcessingOffer.current.get(data.fromSocketId)) {
+      console.log('⚠️ Already processing offer from', data.fromSocketId);
+      return;
+    }
+    isProcessingOffer.current.set(data.fromSocketId, true);
+
+    try {
+      let pc = peerConnections.current.get(data.fromSocketId);
+      
+      // Create new peer connection if doesn't exist
+      if (!pc) {
+        console.log('🆕 Creating new peer connection for incoming offer');
+        pc = createPeerConnection(data.fromSocketId, data.fromUserId, false);
+        
+        if (!pc) {
+          console.error('❌ Failed to create peer connection');
+          return;
+        }
+
+        // Add participant
+        setParticipants(prev => {
+          const exists = prev.find(p => p.socketId === data.fromSocketId);
+          if (!exists) {
+            return [...prev, {
+              userId: data.fromUserId,
+              userName: data.fromUserName,
+              socketId: data.fromSocketId,
+              userRole: data.fromUserRole as 'doctor' | 'patient',
+              isMuted: false,
+              isVideoOff: false,
+              isSharingScreen: false
+            }];
+          }
+          return prev;
+        });
+      }
+
+      // Set remote description
+      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      console.log('✅ Set remote description from offer');
+
+      // Create and send answer
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      console.log('✅ Created and set local description (answer)');
+
+      socketRef.current?.emit('video:answer', {
+        roomId,
+        answer: pc.localDescription,
+        targetSocketId: data.fromSocketId
+      });
+      console.log('📤 Sent answer to', data.fromSocketId);
+
+      // Process queued ICE candidates
+      const queuedCandidates = iceCandidatesQueue.current.get(data.fromSocketId) || [];
+      if (queuedCandidates.length > 0) {
+        console.log(`🧊 Processing ${queuedCandidates.length} queued ICE candidates`);
+        for (const candidate of queuedCandidates) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.error('Error adding queued ICE candidate:', err);
+          }
+        }
+        iceCandidatesQueue.current.delete(data.fromSocketId);
+      }
+    } catch (error) {
+      console.error('❌ Error handling offer:', error);
+      setError('Failed to establish connection');
+    } finally {
+      isProcessingOffer.current.set(data.fromSocketId, false);
+    }
+  }, [createPeerConnection, roomId]);
+
+  const handleAnswer = useCallback(async (data: { 
+    answer: RTCSessionDescriptionInit; 
+    fromSocketId: string 
+  }) => {
+    console.log('📥 Received answer from:', data.fromSocketId);
+    const pc = peerConnections.current.get(data.fromSocketId);
+    
+    if (pc && pc.signalingState === 'have-local-offer') {
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        console.log('✅ Set remote description from answer');
+        
+        // Process queued ICE candidates
+        const queuedCandidates = iceCandidatesQueue.current.get(data.fromSocketId) || [];
+        if (queuedCandidates.length > 0) {
+          console.log(`🧊 Processing ${queuedCandidates.length} queued ICE candidates`);
+          for (const candidate of queuedCandidates) {
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (err) {
+              console.error('Error adding queued ICE candidate:', err);
+            }
+          }
+          iceCandidatesQueue.current.delete(data.fromSocketId);
+        }
+      } catch (error) {
+        console.error('❌ Error handling answer:', error);
+      }
+    } else {
+      console.warn('⚠️ Received answer but peer connection not in correct state:', pc?.signalingState);
+    }
+  }, []);
+
+  const handleIceCandidate = useCallback(async (data: { 
+    candidate: RTCIceCandidateInit; 
+    fromSocketId: string 
+  }) => {
+    console.log('🧊 Received ICE candidate from:', data.fromSocketId);
+    const pc = peerConnections.current.get(data.fromSocketId);
+    
+    if (pc && pc.remoteDescription) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        console.log('✅ Added ICE candidate');
+      } catch (error) {
+        console.error('❌ Error adding ICE candidate:', error);
+      }
+    } else {
+      // Queue ICE candidate if remote description not set yet
+      console.log('📦 Queueing ICE candidate (remote description not set)');
+      const queue = iceCandidatesQueue.current.get(data.fromSocketId) || [];
+      queue.push(data.candidate);
+      iceCandidatesQueue.current.set(data.fromSocketId, queue);
+    }
+  }, []);
+
+  // Initialize Socket.IO
   useEffect(() => {
     const token = getAuthToken();
     if (!token) {
@@ -95,34 +408,37 @@ const VideoCall: React.FC<VideoCallProps> = ({
       return;
     }
 
+    console.log('🔌 Initializing socket connection...');
     const newSocket = io('http://localhost:5001', {
       auth: { token, userId, userType: userRole },
       withCredentials: true,
       timeout: 20000,
-      forceNew: true
+      forceNew: true,
+      transports: ['websocket', 'polling']
     });
 
     setSocket(newSocket);
+    socketRef.current = newSocket;
 
     newSocket.on('connect', () => {
-      console.log(`Socket connected for ${userRole}: ${userId}`);
+      console.log(`✅ Socket connected - ID: ${newSocket.id}, Role: ${userRole}, User: ${userId}`);
       setConnectionState('connected');
     });
 
     newSocket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
+      console.log('🔌 Socket disconnected:', reason);
       setConnectionState('disconnected');
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+      console.error('❌ Socket connection error:', error);
       setConnectionState('failed');
       setError('Failed to connect to video call server');
     });
 
-    // Enhanced incoming call handling
+    // Incoming call handling
     newSocket.on('incoming_video_call', (data) => {
-      console.log('Socket: Incoming video call:', data);
+      console.log('📞 Incoming video call:', data);
       setIncomingCall(true);
       setRoomId(data.roomId);
       toast.info(`Incoming video call from ${data.initiatorRole === 'doctor' ? 'Dr. ' : ''}${data.initiatorName}`, {
@@ -130,14 +446,14 @@ const VideoCall: React.FC<VideoCallProps> = ({
       });
     });
 
-    // Participant management
+    // Participant events
     newSocket.on('video:participant-joined', (data: Participant & { participantsCount: number }) => {
-      console.log('Participant joined:', data);
+      console.log('👤 Participant joined:', data);
       setParticipants(prev => {
         const exists = prev.find(p => p.userId === data.userId);
         if (exists) return prev;
         
-        const newParticipant = {
+        return [...prev, {
           userId: data.userId,
           userName: data.userName,
           socketId: data.socketId,
@@ -145,26 +461,19 @@ const VideoCall: React.FC<VideoCallProps> = ({
           isMuted: false,
           isVideoOff: false,
           isSharingScreen: false
-        };
-        
-        return [...prev, newParticipant];
+        }];
       });
-      
-      // Create peer connection for new participant if we're already in the call
-      if (isCallInitiated && localStreamRef.current) {
-        setTimeout(() => createPeerConnection(data.socketId, data.userId), 100);
-      }
     });
 
     newSocket.on('video:participant-left', (data: { socketId: string; userId: string }) => {
-      console.log('Participant left:', data);
+      console.log('👋 Participant left:', data);
       setParticipants(prev => prev.filter(p => p.socketId !== data.socketId));
       
-      // Clean up peer connection
       const pc = peerConnections.current.get(data.socketId);
       if (pc) {
         pc.close();
         peerConnections.current.delete(data.socketId);
+        console.log('🗑️ Cleaned up peer connection for', data.socketId);
       }
       iceCandidatesQueue.current.delete(data.socketId);
     });
@@ -187,244 +496,81 @@ const VideoCall: React.FC<VideoCallProps> = ({
       );
     });
 
-    // Screen sharing
-    newSocket.on('video:participant-screen-share-started', (data: { socketId: string }) => {
-      setParticipants(prev =>
-        prev.map(p => (p.socketId === data.socketId ? { ...p, isSharingScreen: true } : p))
-      );
-    });
-
-    newSocket.on('video:participant-screen-share-stopped', (data: { socketId: string }) => {
-      setParticipants(prev =>
-        prev.map(p => (p.socketId === data.socketId ? { ...p, isSharingScreen: false } : p))
-      );
-    });
-
-    // Call status events
+    // Call end
     newSocket.on('video:call-ended', () => {
-      console.log('Call ended by server');
+      console.log('📞 Call ended by server');
       toast.info('The video call has ended');
       setTimeout(() => onCallEnd(), 1000);
     });
 
     return () => {
+      console.log('🧹 Cleaning up socket connection');
       newSocket.disconnect();
       setSocket(null);
+      socketRef.current = null;
     };
-  }, [userRole, userId]);
+  }, [userRole, userId, handleOffer, handleAnswer, handleIceCandidate]);
 
-  // Enhanced peer connection creation with better error handling
-  const createPeerConnection = useCallback((socketId: string, targetUserId: string) => {
-    if (peerConnections.current.has(socketId)) {
-      return peerConnections.current.get(socketId)!;
-    }
+  // Handle room participants and initiate connections
+  useEffect(() => {
+    if (!socket || !isCallInitiated || !localStreamRef.current) return;
 
-    console.log(`Creating peer connection for socket: ${socketId}`);
-    const pc = new RTCPeerConnection(rtcConfiguration);
-    peerConnections.current.set(socketId, pc);
+    const handleRoomParticipants = async (data: { 
+      roomId: string;
+      participants: Array<{ userId: string; userName: string; socketId: string; userRole: string }>;
+      participantsCount: number;
+    }) => {
+      console.log('👥 Room participants update:', data);
+      
+      // Update participants
+      const updatedParticipants = data.participants
+        .filter(p => p.socketId !== socket.id) // Exclude self
+        .map(p => ({
+          userId: p.userId,
+          userName: p.userName || 'Unknown',
+          socketId: p.socketId,
+          userRole: (p.userRole || 'patient') as 'doctor' | 'patient',
+          isMuted: false,
+          isVideoOff: false,
+          isSharingScreen: false
+        }));
+      
+      setParticipants(updatedParticipants);
 
-    // ICE candidate handling
-    pc.onicecandidate = (event) => {
-      if (event.candidate && socket) {
-        console.log(`Sending ICE candidate to ${socketId}`);
-        socket.emit('video:ice-candidate', {
-          roomId,
-          candidate: event.candidate,
-          targetSocketId: socketId
-        });
-      }
-    };
-
-    // Remote stream handling
-    pc.ontrack = (event) => {
-      console.log('Received remote track from:', socketId);
-      if (remoteVideoRef.current && event.streams[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
-
-    // Add local tracks if available
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach(track => {
-        console.log(`Adding local track to peer connection: ${track.kind}`);
-        pc.addTrack(track, localStreamRef.current!);
-      });
-    }
-
-    // Connection state monitoring
-    pc.oniceconnectionstatechange = () => {
-      console.log(`ICE connection state for ${socketId}: ${pc.iceConnectionState}`);
-      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-        setConnectionState('connected');
-      } else if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-        setConnectionState('disconnected');
-        if (pc.iceConnectionState === 'failed') {
-          console.log(`Peer connection failed for ${socketId}, cleaning up`);
-          pc.close();
-          peerConnections.current.delete(socketId);
+      // Create peer connections and send offers to other participants
+      for (const participant of updatedParticipants) {
+        if (participant.socketId !== socket.id) {
+          console.log(`🤝 Initiating connection with ${participant.userName} (${participant.socketId})`);
+          
+          const pc = createPeerConnection(participant.socketId, participant.userId, true);
+          if (pc && pc.signalingState === 'stable') {
+            try {
+              const offer = await pc.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true
+              });
+              await pc.setLocalDescription(offer);
+              
+              socket.emit('video:offer', {
+                roomId: data.roomId,
+                offer: pc.localDescription,
+                targetSocketId: participant.socketId
+              });
+              console.log('📤 Sent offer to', participant.socketId);
+            } catch (error) {
+              console.error('❌ Error creating/sending offer:', error);
+            }
+          }
         }
       }
     };
 
-    pc.onsignalingstatechange = () => {
-      console.log(`Signaling state for ${socketId}: ${pc.signalingState}`);
-    };
-
-    return pc;
-  }, [roomId, socket]);
-
-  // Media initialization with better error handling
-  const initializeMedia = useCallback(async () => {
-    try {
-      console.log('Initializing media...');
-      const constraints = {
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
-        },
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      localStreamRef.current = stream;
-      
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-      
-      console.log('Local stream initialized:', stream.id);
-      
-      // Add tracks to existing peer connections
-      peerConnections.current.forEach((pc, socketId) => {
-        console.log(`Adding tracks to existing peer connection: ${socketId}`);
-        stream.getTracks().forEach(track => {
-          pc.addTrack(track, stream);
-        });
-      });
-      
-      setError(null);
-      return stream;
-    } catch (err: any) {
-      console.error('Error accessing media devices:', err);
-      let errorMessage = 'Failed to access camera or microphone';
-      
-      if (err.name === 'NotFoundError') {
-        errorMessage = 'No camera or microphone found';
-      } else if (err.name === 'NotAllowedError') {
-        errorMessage = 'Camera and microphone access denied';
-      } else if (err.name === 'NotReadableError') {
-        errorMessage = 'Camera or microphone is already in use';
-      }
-      
-      setError(errorMessage);
-      toast.error(errorMessage);
-      throw err;
-    }
-  }, []);
-
-  // WebRTC signaling handlers
-  const handleOffer = useCallback(async (data: { 
-    offer: RTCSessionDescriptionInit; 
-    fromSocketId: string; 
-    fromUserId: string; 
-    fromUserName: string; 
-    fromUserRole: string 
-  }) => {
-    console.log('Handling offer from:', data.fromSocketId);
+    socket.on('video:room-participants', handleRoomParticipants);
     
-    let pc = peerConnections.current.get(data.fromSocketId);
-    if (!pc) {
-      pc = createPeerConnection(data.fromSocketId, data.fromUserId);
-      
-      // Add participant if not exists
-      setParticipants(prev => {
-        const exists = prev.find(p => p.socketId === data.fromSocketId);
-        if (!exists) {
-          return [...prev, {
-            userId: data.fromUserId,
-            userName: data.fromUserName,
-            socketId: data.fromSocketId,
-            userRole: data.fromUserRole as 'doctor' | 'patient',
-            isMuted: false,
-            isVideoOff: false,
-            isSharingScreen: false
-          }];
-        }
-        return prev;
-      });
-    }
-
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-
-      socket?.emit('video:answer', {
-        roomId,
-        answer,
-        targetSocketId: data.fromSocketId
-      });
-
-      // Process queued ICE candidates
-      const queuedCandidates = iceCandidatesQueue.current.get(data.fromSocketId) || [];
-      for (const candidate of queuedCandidates) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-      iceCandidatesQueue.current.delete(data.fromSocketId);
-    } catch (error) {
-      console.error('Error handling offer:', error);
-      setError('Failed to handle WebRTC offer');
-    }
-  }, [createPeerConnection, roomId, socket]);
-
-  const handleAnswer = useCallback(async (data: { 
-    answer: RTCSessionDescriptionInit; 
-    fromSocketId: string 
-  }) => {
-    console.log('Handling answer from:', data.fromSocketId);
-    const pc = peerConnections.current.get(data.fromSocketId);
-    
-    if (pc) {
-      try {
-        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-        
-        // Process queued ICE candidates
-        const queuedCandidates = iceCandidatesQueue.current.get(data.fromSocketId) || [];
-        for (const candidate of queuedCandidates) {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
-        }
-        iceCandidatesQueue.current.delete(data.fromSocketId);
-      } catch (error) {
-        console.error('Error handling answer:', error);
-      }
-    }
-  }, []);
-
-  const handleIceCandidate = useCallback(async (data: { 
-    candidate: RTCIceCandidateInit; 
-    fromSocketId: string 
-  }) => {
-    console.log('Handling ICE candidate from:', data.fromSocketId);
-    const pc = peerConnections.current.get(data.fromSocketId);
-    
-    if (pc && pc.remoteDescription && pc.signalingState !== 'closed') {
-      try {
-        await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-      } catch (error) {
-        console.error('Error handling ICE candidate:', error);
-      }
-    } else {
-      // Queue ICE candidate
-      const queue = iceCandidatesQueue.current.get(data.fromSocketId) || [];
-      queue.push(data.candidate);
-      iceCandidatesQueue.current.set(data.fromSocketId, queue);
-    }
-  }, []);
+    return () => {
+      socket.off('video:room-participants', handleRoomParticipants);
+    };
+  }, [socket, isCallInitiated, createPeerConnection]);
 
   // Call management functions
   const startCall = useCallback(async () => {
@@ -433,28 +579,30 @@ const VideoCall: React.FC<VideoCallProps> = ({
         throw new Error('Room ID not available');
       }
 
-      console.log('Starting call...');
+      console.log('📞 Starting call for room:', roomId);
       await initializeMedia();
       setIsCallInitiated(true);
 
-      socket?.emit('video:join-room', {
-        roomId,
-        appointmentId,
-        userId,
-        userName,
-        userRole
-      });
+      // Small delay to ensure media is ready
+      setTimeout(() => {
+        socketRef.current?.emit('video:join-room', {
+          roomId,
+          appointmentId,
+          userId,
+          userName,
+          userRole
+        });
+        console.log('✅ Joined video room');
+      }, 500);
 
-      console.log('Call started successfully');
       toast.success('Video call started');
     } catch (error) {
-      console.error('Error starting call:', error);
+      console.error('❌ Error starting call:', error);
       setError('Failed to start video call');
       toast.error('Failed to start video call');
     }
-  }, [roomId, appointmentId, socket, initializeMedia, userId, userName, userRole]);
+  }, [roomId, appointmentId, initializeMedia, userId, userName, userRole]);
 
-  // Enhanced accept call function
   const acceptCall = async () => {
     if (isJoining) return;
     
@@ -465,7 +613,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
         throw new Error('Room ID not available');
       }
 
-      console.log('Accepting call for room:', roomId);
+      console.log('✅ Accepting call for room:', roomId);
       
       const axiosInstance = getAxiosInstance();
       const endpoint = userRole === 'doctor' 
@@ -475,30 +623,29 @@ const VideoCall: React.FC<VideoCallProps> = ({
       const response = await axiosInstance.post(endpoint);
 
       if (response.data.success) {
-        console.log('Call accepted via API');
+        console.log('✅ Call accepted via API');
         setIncomingCall(false);
         
-        // Initialize media first
         await initializeMedia();
         setIsCallInitiated(true);
         
-        // Emit acceptance events
-        socket?.emit('call_accepted', { roomId, userId });
-        socket?.emit('video:join-room', { 
-          roomId, 
-          appointmentId,
-          userId,
-          userName,
-          userRole
-        });
+        setTimeout(() => {
+          socketRef.current?.emit('video:join-room', { 
+            roomId, 
+            appointmentId,
+            userId,
+            userName,
+            userRole
+          });
+          console.log('✅ Joined video room after accepting');
+        }, 500);
         
         toast.success('Joined video call');
-        console.log('Call accepted successfully');
       } else {
         throw new Error(response.data.message);
       }
     } catch (error: any) {
-      console.error('Error accepting call:', error);
+      console.error('❌ Error accepting call:', error);
       const errorMessage = error.response?.data?.message || 'Failed to accept call';
       setError(errorMessage);
       toast.error(errorMessage);
@@ -509,19 +656,19 @@ const VideoCall: React.FC<VideoCallProps> = ({
 
   const declineCall = async () => {
     try {
-      console.log('Declining call');
-      socket?.emit('call_declined', { roomId, userId });
+      console.log('❌ Declining call');
+      socketRef.current?.emit('call_declined', { roomId, userId });
       setIncomingCall(false);
       toast.info('Call declined');
       onCallEnd();
     } catch (error: any) {
-      console.error('Error declining call:', error);
+      console.error('❌ Error declining call:', error);
     }
   };
 
   const endCall = async () => {
     try {
-      console.log('Ending call');
+      console.log('📞 Ending call');
       
       const axiosInstance = getAxiosInstance();
       const endpoint = userRole === 'doctor' 
@@ -530,43 +677,30 @@ const VideoCall: React.FC<VideoCallProps> = ({
       
       await axiosInstance.post(endpoint);
 
-      // Emit socket events
-      socket?.emit('video:leave-room', { roomId });
-      socket?.emit('call_ended', { roomId, userId });
+      socketRef.current?.emit('video:leave-room', { roomId });
 
-      // Clean up media and connections
-      localStreamRef.current?.getTracks().forEach(track => {
-        track.stop();
-        console.log(`Stopped ${track.kind} track`);
-      });
-      
-      screenStreamRef.current?.getTracks().forEach(track => {
-        track.stop();
-        console.log('Stopped screen share track');
-      });
+      // Clean up media
+      localStreamRef.current?.getTracks().forEach(track => track.stop());
+      screenStreamRef.current?.getTracks().forEach(track => track.stop());
 
-      // Close all peer connections
-      peerConnections.current.forEach((pc, socketId) => {
-        console.log(`Closing peer connection: ${socketId}`);
-        pc.close();
-      });
+      // Close peer connections
+      peerConnections.current.forEach((pc) => pc.close());
       peerConnections.current.clear();
       iceCandidatesQueue.current.clear();
       
       localStreamRef.current = null;
+      remoteStreamRef.current = null;
       screenStreamRef.current = null;
 
       toast.success('Call ended');
       onCallEnd();
     } catch (error: any) {
-      console.error('Error ending call:', error);
-      toast.error(error.response?.data?.message || 'Failed to end call');
-      // Still try to clean up locally
+      console.error('❌ Error ending call:', error);
       onCallEnd();
     }
   };
 
-  // Media control functions
+  // Media controls
   const toggleAudio = () => {
     if (localStreamRef.current) {
       const audioTracks = localStreamRef.current.getAudioTracks();
@@ -577,8 +711,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
       });
       
       setIsMuted(newMutedState);
-      socket?.emit('video:toggle-audio', { roomId, isMuted: newMutedState });
-      
+      socketRef.current?.emit('video:toggle-audio', { roomId, isMuted: newMutedState });
       toast.info(newMutedState ? 'Microphone muted' : 'Microphone unmuted');
     }
   };
@@ -593,8 +726,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
       });
       
       setIsVideoOff(newVideoOffState);
-      socket?.emit('video:toggle-video', { roomId, isVideoOff: newVideoOffState });
-      
+      socketRef.current?.emit('video:toggle-video', { roomId, isVideoOff: newVideoOffState });
       toast.info(newVideoOffState ? 'Camera turned off' : 'Camera turned on');
     }
   };
@@ -608,7 +740,6 @@ const VideoCall: React.FC<VideoCallProps> = ({
         });
         screenStreamRef.current = screenStream;
 
-        // Replace video track in all peer connections
         peerConnections.current.forEach(pc => {
           const videoTrack = screenStream.getVideoTracks()[0];
           const sender = pc.getSenders().find(s => s.track?.kind === 'video');
@@ -617,19 +748,18 @@ const VideoCall: React.FC<VideoCallProps> = ({
           }
         });
 
-        // Handle screen share end
         screenStream.getVideoTracks()[0].onended = () => {
           stopScreenShare();
         };
 
         setIsSharingScreen(true);
-        socket?.emit('video:start-screen-share', { roomId });
+        socketRef.current?.emit('video:start-screen-share', { roomId });
         toast.success('Screen sharing started');
       } else {
         stopScreenShare();
       }
     } catch (error) {
-      console.error('Error sharing screen:', error);
+      console.error('❌ Error sharing screen:', error);
       toast.error('Failed to share screen');
     }
   };
@@ -639,7 +769,6 @@ const VideoCall: React.FC<VideoCallProps> = ({
       screenStreamRef.current.getTracks().forEach(track => track.stop());
       screenStreamRef.current = null;
 
-      // Restore camera video in all peer connections
       if (localStreamRef.current) {
         const videoTrack = localStreamRef.current.getVideoTracks()[0];
         peerConnections.current.forEach(pc => {
@@ -651,75 +780,20 @@ const VideoCall: React.FC<VideoCallProps> = ({
       }
 
       setIsSharingScreen(false);
-      socket?.emit('video:stop-screen-share', { roomId });
+      socketRef.current?.emit('video:stop-screen-share', { roomId });
       toast.info('Screen sharing stopped');
     }
   };
 
-  // Auto-start call for non-incoming calls
+  // Auto-start for non-incoming calls
   useEffect(() => {
     if (!isIncoming && roomId && !isCallInitiated && socket) {
+      console.log('🚀 Auto-starting call (not incoming)');
       startCall();
     }
   }, [isIncoming, roomId, isCallInitiated, socket, startCall]);
 
-  // Handle room participants update
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleRoomParticipants = (data: VideoCallSession) => {
-      console.log('Room participants update:', data);
-      
-      // Update participants list
-      const updatedParticipants = data.participants.map(p => ({
-        userId: p.userId,
-        userName: p.userName || 'Unknown',
-        socketId: p.socketId,
-        userRole: p.userRole || 'patient' as 'doctor' | 'patient',
-        isMuted: false,
-        isVideoOff: false,
-        isSharingScreen: false
-      }));
-      
-      setParticipants(updatedParticipants);
-
-      // Create offers for new participants if we have local stream
-      if (isCallInitiated && localStreamRef.current) {
-        data.participants.forEach(async participant => {
-          if (participant.userId !== userId && participant.socketId !== socket?.id) {
-            if (!peerConnections.current.has(participant.socketId)) {
-              console.log(`Creating offer for new participant: ${participant.socketId}`);
-              const pc = createPeerConnection(participant.socketId, participant.userId);
-              
-              try {
-                const offer = await pc.createOffer({
-                  offerToReceiveAudio: true,
-                  offerToReceiveVideo: true
-                });
-                await pc.setLocalDescription(offer);
-                
-                socket?.emit('video:offer', {
-                  roomId,
-                  offer,
-                  targetSocketId: participant.socketId
-                });
-              } catch (error) {
-                console.error('Error creating offer:', error);
-              }
-            }
-          }
-        });
-      }
-    };
-
-    socket.on('video:room-participants', handleRoomParticipants);
-    
-    return () => {
-      socket.off('video:room-participants', handleRoomParticipants);
-    };
-  }, [socket, roomId, userId, createPeerConnection, isCallInitiated]);
-
-  // Render incoming call screen
+  // Incoming call UI
   if (incomingCall && !isCallInitiated) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-900 to-purple-900 text-white">
@@ -760,7 +834,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
     );
   }
 
-  // Render error screen
+  // Error UI
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900 text-white">
@@ -786,7 +860,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
     );
   }
 
-  // Main video call interface
+  // Main video call UI
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       {/* Header */}
@@ -795,7 +869,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
           <div>
             <h1 className="text-xl font-semibold">Video Call</h1>
             <p className="text-sm text-gray-400">
-              Room: {roomId} | Appointment: {appointmentId}
+              Room: {roomId?.substring(0, 20)}... | Appointment: {appointmentId}
             </p>
           </div>
           <div className="flex items-center space-x-4">
@@ -825,16 +899,17 @@ const VideoCall: React.FC<VideoCallProps> = ({
               playsInline
               className="w-full h-full object-cover"
             />
-            {!remoteVideoRef.current?.srcObject && (
+            {!remoteStreamRef.current && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                 <div className="text-center">
                   <Users className="h-12 w-12 text-gray-500 mx-auto mb-2" />
                   <p className="text-gray-400">Waiting for other participant...</p>
+                  <p className="text-sm text-gray-500 mt-2">Participants: {participants.length}</p>
                 </div>
               </div>
             )}
             
-            {/* Remote participant info overlay */}
+            {/* Remote participant info */}
             {participants.length > 0 && (
               <div className="absolute bottom-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg px-3 py-2">
                 <div className="text-sm">
@@ -965,7 +1040,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
         </div>
       </div>
 
-      {/* Loading/Status Overlay */}
+      {/* Loading overlay */}
       {(connectionState === 'connecting' || isJoining) && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-gray-800 p-6 rounded-lg text-center">

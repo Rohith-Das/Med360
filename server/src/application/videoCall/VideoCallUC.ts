@@ -4,6 +4,7 @@ import { getSocketServer } from "../../infrastructure/socket/socketServer";
 import { NotificationService } from "../notification/NotificationService";
 import { IDoctorRepository } from "../../domain/repositories/DoctorRepository-method";
 import { IPatientRepository } from "../../domain/repositories/patientRepository_method";
+import { VideoCallSessionModel } from "../../infrastructure/database/models/VideoCallSessionModel";
 
 export interface VideoCallSession {
   roomId: string;
@@ -14,6 +15,8 @@ export interface VideoCallSession {
   startedAt?: Date;
   endedAt?: Date;
   initiatedBy: 'doctor' | 'patient';
+  doctorName?: string;
+  patientName?: string;
 }
 
 @injectable()
@@ -26,7 +29,85 @@ export class VideoCallUseCase {
     @inject(NotificationService) private notificationService: NotificationService,
     @inject("IPatientRepository") private patientRepo: IPatientRepository,
     @inject("IDoctorRepository") private doctorRepo: IDoctorRepository
-  ) {}
+  ) {
+    // Load active sessions from DB on initialization
+    this.loadActiveSessions();
+  }
+
+  /**
+   * Load active sessions from MongoDB into memory on server start
+   */
+  private async loadActiveSessions(): Promise<void> {
+    try {
+      const activeSessions = await VideoCallSessionModel.find({
+        status: { $in: ["waiting", "active"] }
+      }).lean();
+
+      activeSessions.forEach(session => {
+        this.activeSession.set(session.roomId, {
+          roomId: session.roomId,
+          appointmentId: session.appointmentId,
+          doctorId: session.doctorId,
+          patientId: session.patientId,
+          status: session.status,
+          startedAt: session.startedAt,
+          endedAt: session.endedAt,
+          initiatedBy: session.initiatedBy,
+          doctorName: session.doctorName,
+          patientName: session.patientName
+        });
+      });
+
+      console.log(`✅ Loaded ${activeSessions.length} active sessions from database`);
+    } catch (error) {
+      console.error('❌ Failed to load active sessions:', error);
+    }
+  }
+
+  /**
+   * Get session from memory or database
+   */
+  private async getSessionFromMemoryOrDB(roomId: string): Promise<VideoCallSession | null> {
+    // First check in-memory cache
+    let session = this.activeSession.get(roomId);
+    
+    if (session) {
+      console.log(`✅ Session found in memory for room: ${roomId}`);
+      return session;
+    }
+
+    // If not in memory, check database
+    console.log(`🔍 Session not in memory, checking database for room: ${roomId}`);
+    const dbSession = await VideoCallSessionModel.findOne({
+      roomId,
+      status: { $in: ["waiting", "active"] }
+    }).lean();
+
+    if (dbSession) {
+      console.log(`✅ Session found in database for room: ${roomId}`);
+      
+      // Convert MongoDB document to VideoCallSession and cache it
+      session = {
+        roomId: dbSession.roomId,
+        appointmentId: dbSession.appointmentId,
+        doctorId: dbSession.doctorId,
+        patientId: dbSession.patientId,
+        status: dbSession.status,
+        startedAt: dbSession.startedAt,
+        endedAt: dbSession.endedAt,
+        initiatedBy: dbSession.initiatedBy,
+        doctorName: dbSession.doctorName,
+        patientName: dbSession.patientName
+      };
+      
+      // Cache in memory for future requests
+      this.activeSession.set(roomId, session);
+      return session;
+    }
+
+    console.error(`❌ Session not found in memory or database for room: ${roomId}`);
+    return null;
+  }
 
   async initiateCall(
     appointmentId: string,
@@ -50,14 +131,47 @@ export class VideoCallUseCase {
       throw new Error("Appointment must be confirmed to start video call");
     }
 
-    // Check for existing session
-    const existingSession = Array.from(this.activeSession.values())
-      .find(session => session.appointmentId === appointmentId && session.status !== 'ended');
+    // Check for existing active session
+    const existingSession = await VideoCallSessionModel.findOne({
+      appointmentId,
+      status: { $in: ["waiting", "active"] }
+    }).lean();
+
     if (existingSession) {
-      return existingSession;
+      console.log(`✅ Found existing session for appointment: ${appointmentId}`);
+      const session: VideoCallSession = {
+        roomId: existingSession.roomId,
+        appointmentId: existingSession.appointmentId,
+        doctorId: existingSession.doctorId,
+        patientId: existingSession.patientId,
+        status: existingSession.status,
+        startedAt: existingSession.startedAt,
+        endedAt: existingSession.endedAt,
+        initiatedBy: existingSession.initiatedBy,
+        doctorName: existingSession.doctorName,
+        patientName: existingSession.patientName
+      };
+      
+      // Cache in memory
+      this.activeSession.set(existingSession.roomId, session);
+      return session;
     }
    
-    const roomId = `appointment_${appointmentId}_${Date.now()}`;
+    const roomId = `room_${appointmentId}_${Date.now()}`;
+    
+    // Fetch names for both doctor and patient
+    const doctor = await this.doctorRepo.findById(appointment.doctorId.toString());
+    const patient = await this.patientRepo.findById(appointment.patientId.toString());
+    
+    if (!doctor || !patient) {
+      throw new Error("Doctor or patient information not found");
+    }
+    
+    const initiatorName = initiatorRole === "doctor" ? doctor?.name : patient?.name;
+    const recipientId = initiatorRole === "doctor"
+      ? appointment.patientId.toString()
+      : appointment.doctorId.toString();
+    const recipientRole = initiatorRole === "doctor" ? "patient" : "doctor";
 
     const session: VideoCallSession = {
       roomId,
@@ -66,21 +180,18 @@ export class VideoCallUseCase {
       patientId: appointment.patientId.toString(),
       status: "waiting",
       startedAt: new Date(),
-      initiatedBy: initiatorRole
+      initiatedBy: initiatorRole,
+      doctorName: doctor.name,
+      patientName: patient.name,
     };
+
+    // Save to both database and memory
+    await VideoCallSessionModel.create(session);
     this.activeSession.set(roomId, session);
+    console.log(`✅ Video call session created and cached: ${roomId}`);
 
-    // Fetch names for both doctor and patient
-    const doctor = await this.doctorRepo.findById(appointment.doctorId.toString());
-    const patient = await this.patientRepo.findById(appointment.patientId.toString());
-    
-    const initiatorName = initiatorRole === "doctor" 
-      ? doctor?.name || "Doctor"
-      : patient?.name || "Patient";
-
-    // Enhanced socket notification with complete data
-    const socketServer = getSocketServer();
-    const callData = {
+    // Enhanced socket notification
+    const completeCallData = {
       roomId,
       appointmentId,
       initiatorRole,
@@ -88,117 +199,135 @@ export class VideoCallUseCase {
       initiatorName,
       callType: "video",
       appointmentTime: `${appointment.startTime}-${appointment.endTime}`,
-      appointmentDate: appointment.date.toISOString().split("T")[0], // Ensure proper date format
-      patientName: patient?.name || "Patient",
-      doctorName: doctor?.name || "Doctor"
+      appointmentDate: appointment.date.toISOString().split("T")[0],
+      patientName: patient.name,
+      doctorName: doctor.name,
+      patientId: patient.id || appointment.patientId.toString(),
+      doctorId: doctor.id || appointment.doctorId.toString(),
+      status: "waiting",
+      timestamp: new Date().toISOString()
     };
+
+    console.log(`📞 Sending incoming call to ${recipientRole}: ${recipientId}`);
     
-    const recipientId = initiatorRole === "doctor"
-      ? appointment.patientId.toString()
-      : appointment.doctorId.toString();
+    const socketServer = getSocketServer();
+    let socketSent = false;
+    
+    if (initiatorRole === 'doctor') {
+      socketSent = socketServer.sendToPatient(recipientId, 'incoming_video_call', completeCallData);
+    } else {
+      socketSent = socketServer.sendToDoctor(recipientId, 'incoming_video_call', completeCallData);
+    }
 
-    console.log(`🚀 Initiating call - sending to ${initiatorRole === "doctor" ? "patient" : "doctor"}: ${recipientId}`);
-    console.log(`📞 Call data:`, callData);
-
-    // Send socket notification
-    const socketSent = socketServer.sendIncomingCallNotification(recipientId, callData);
-    console.log(`📡 Socket notification sent: ${socketSent}`);
-
-    // Create enhanced persistent notification with roomId
-    await this.notificationService.createVideoCallNotification({
-      appointmentId,
-      recipientId,
-      initiatorId,
-      initiatorRole,
-      initiatorName,
-      roomId, // Include roomId in notification
-      type: "video_call_initiated",
-      title: `${initiatorRole === "doctor" ? "Dr. " : ""}${initiatorName} wants to start a video call`,
-      message: `Join the video call for your appointment on ${appointment.date.toISOString().split("T")[0]}`,
-      data: {
+    if (!socketSent) {
+      console.warn(`⚠️ Socket notification failed - user ${recipientId} may be offline`);
+    }
+    
+    // Create persistent notification
+    try {
+      await this.notificationService.createVideoCallNotification({
         appointmentId,
-        roomId, // CRITICAL: Include roomId in notification data
-        appointmentDate: appointment.date.toISOString().split("T")[0],
-        appointmentTime: `${appointment.startTime}-${appointment.endTime}`,
-        doctorName: doctor?.name,
-        patientName: patient?.name,
+        recipientId,
+        initiatorId,
         initiatorRole,
-        initiatorName
-      },
-    });
-
-    console.log(`✅ Video call initiated successfully. Room: ${roomId}`);
+        initiatorName,
+        roomId, 
+        type: "video_call_initiated",
+        title: `Incoming Video Call from ${initiatorRole === "doctor" ? "Dr. " : ""}${initiatorName}`,
+        message: `Join the video call for your appointment on ${appointment.date.toISOString().split("T")[0]}`,
+        data: completeCallData,
+      });
+      console.log(`✅ Persistent notification created with roomId: ${roomId}`);
+    } catch (error) {
+      console.error(`❌ Failed to create notification:`, error);
+    }
+    
     return session;
   }
 
   async joinCall(roomId: string, userId: string): Promise<VideoCallSession | null> {
-    const session = this.activeSession.get(roomId);
+    console.log(`🔵 Join call attempt - Room: ${roomId}, User: ${userId}`);
+    
+    // Get session from memory or database
+    const session = await this.getSessionFromMemoryOrDB(roomId);
+    
     if (!session) {
-      throw new Error("Video call session not found");
+      console.error(`❌ Video call session not found for room: ${roomId}`);
+      console.log(`📋 Active in-memory sessions:`, Array.from(this.activeSession.keys()));
+      throw new Error("Video call session not found or expired");
     }
     
-    // Authorization check
-    if (session.doctorId !== userId && session.patientId !== userId) {
+    const isDoctor = session.doctorId === userId;
+    const isPatient = session.patientId === userId;
+
+    if (!isDoctor && !isPatient) {
+      console.error(`❌ Unauthorized join attempt by ${userId} for room ${roomId}`);
       throw new Error("Unauthorized to join this video call");
     }
-
-    // Update session status
-    session.status = "active";
-    this.activeSession.set(roomId, session);
-
-    // Get user information
-    const isDoctor = session.doctorId === userId;
-    const userData = isDoctor
-      ? await this.doctorRepo.findById(userId)
+    
+    const userRole: 'doctor' | 'patient' = isDoctor ? 'doctor' : 'patient';
+    const userData = isDoctor 
+      ? await this.doctorRepo.findById(userId) 
       : await this.patientRepo.findById(userId);
     const userName = userData?.name || (isDoctor ? 'Doctor' : 'Patient');
-    const userRole = isDoctor ? 'doctor' : 'patient';
+    
+    console.log(`✅ User ${userName} (${userRole}) authorized to join room ${roomId}`);
+
+    if (session.status === "waiting") {
+      session.status = "active";
+      this.activeSession.set(roomId, session);
+      console.log(`🟢 Call status updated to ACTIVE for room ${roomId}`);
+
+      await VideoCallSessionModel.updateOne(
+        { roomId },
+        { $set: { status: 'active' } }
+      );
+      console.log(`✅ Session status persisted to MongoDB for room: ${roomId}`);
+    }
 
     // Notify via socket
     const socketServer = getSocketServer();
     const otherUserId = isDoctor ? session.patientId : session.doctorId;
 
-    // Send join confirmation to the other participant
     socketServer.sendToUser(otherUserId, 'call_participant_joined', {
       roomId,
       userId,
       userName,
       userRole,
       socketId: socketServer.getSocketId(userId),
-      status: 'active',
+      status: session.status,
     });
 
-    // Get participant information for room update
-    const doctorData = await this.doctorRepo.findById(session.doctorId);
-    const patientData = await this.patientRepo.findById(session.patientId);
+    const participants = [
+      {
+        userId: session.doctorId,
+        userName: session.doctorName || 'Doctor',
+        socketId: socketServer.getSocketId(session.doctorId),
+        userRole: 'doctor' as const
+      },
+      {
+        userId: session.patientId,
+        userName: session.patientName || 'Patient',
+        socketId: socketServer.getSocketId(session.patientId),
+        userRole: 'patient' as const
+      }
+    ].filter(p => p.socketId);
 
-    // Send room participants update to all participants in the room
     socketServer.sendToRoom(roomId, 'video:room-participants', {
       roomId,
-      participants: [
-        {
-          userId: session.doctorId,
-          userName: doctorData?.name || 'Doctor',
-          socketId: socketServer.getSocketId(session.doctorId),
-          userRole: 'doctor'
-        },
-        {
-          userId: session.patientId,
-          userName: patientData?.name || 'Patient',
-          socketId: socketServer.getSocketId(session.patientId),
-          userRole: 'patient'
-        }
-      ].filter(p => p.socketId), // Only include connected participants
-      participantsCount: 2
+      participants,
+      participantsCount: participants.length
     });
 
-    console.log(`✅ User ${userName} (${userRole}) joined video call ${roomId}`);
+    console.log(`✅ User ${userName} (${userRole}) successfully joined video call ${roomId}`);
     return session;
   }
 
   async endCall(roomId: string, userId: string): Promise<boolean> {
-    const session = this.activeSession.get(roomId);
+    const session = await this.getSessionFromMemoryOrDB(roomId);
+    
     if (!session) {
+      console.warn(`Call end requested for non-existent room: ${roomId}`);
       return false;
     }
     
@@ -210,32 +339,37 @@ export class VideoCallUseCase {
     // Update session
     session.status = "ended";
     session.endedAt = new Date();
+    
+    await VideoCallSessionModel.updateOne(
+      { roomId },
+      { $set: { status: "ended", endedAt: session.endedAt } }
+    );
+    console.log(`✅ Session ended and persisted to MongoDB for room: ${roomId}`);
 
     const socketServer = getSocketServer();
     const otherUserId = session.doctorId === userId ? session.patientId : session.doctorId;
 
+    const isDoctor = session.doctorId === userId;
+    const userData = isDoctor 
+      ? await this.doctorRepo.findById(userId)
+      : await this.patientRepo.findById(userId);
+    const initiatorName = userData?.name || (isDoctor ? 'Doctor' : 'Patient');
+    const initiatorRole: 'doctor' | 'patient' = isDoctor ? 'doctor' : 'patient';
+    
     // Notify about call end
     socketServer.sendCallEndNotification(otherUserId, {
       roomId,
       endedBy: userId,
+      endedByName: initiatorName,
       reason: "ended_by_user",
     });
 
-    // Broadcast to room that call ended
     socketServer.sendToRoom(roomId, 'video:call-ended', {
       roomId,
       endedBy: userId,
+      endedByName: initiatorName,
       endedAt: session.endedAt
     });
-
-    // Get user information for notification
-    const isDoctor = session.doctorId === userId;
-    const userData = isDoctor
-      ? await this.doctorRepo.findById(userId)
-      : await this.patientRepo.findById(userId);
-    
-    const initiatorName = userData?.name || (isDoctor ? "Doctor" : "Patient");
-    const initiatorRole: "doctor" | "patient" = isDoctor ? "doctor" : "patient";
 
     // Create end notification
     const duration = session.startedAt 
@@ -265,15 +399,15 @@ export class VideoCallUseCase {
     // Clean up session after 5 minutes
     setTimeout(() => {
       this.activeSession.delete(roomId);
-      console.log(`🧹 Cleaned up session for room: ${roomId}`);
+      console.log(`🧹 Cleaned up in-memory session for room: ${roomId}`);
     }, 5 * 60 * 1000);
 
-    console.log(`❌ Video call ended by ${initiatorName} in room: ${roomId}`);
+    console.log(`❌ Video call ended by ${initiatorName} in room: ${roomId} (Duration: ${duration}s)`);
     return true;
   }
 
-  getActiveSession(roomId: string): VideoCallSession | null {
-    return this.activeSession.get(roomId) || null;
+  async getActiveSession(roomId: string): Promise<VideoCallSession | null> {
+    return await this.getSessionFromMemoryOrDB(roomId);
   }
 
   getSessionByUser(userId: string): VideoCallSession[] {
@@ -282,8 +416,6 @@ export class VideoCallUseCase {
     );
   }
 
-  // Additional helper methods
-  
   getAllActiveSessions(): VideoCallSession[] {
     return Array.from(this.activeSession.values());
   }
@@ -295,9 +427,41 @@ export class VideoCallUseCase {
     );
   }
 
-  getSessionByAppointment(appointmentId: string): VideoCallSession | null {
-    return Array.from(this.activeSession.values()).find(
+  async getSessionByAppointment(appointmentId: string): Promise<VideoCallSession | null> {
+    // Check memory first
+    const memorySession = Array.from(this.activeSession.values()).find(
       session => session.appointmentId === appointmentId && session.status !== 'ended'
-    ) || null;
+    );
+    
+    if (memorySession) {
+      return memorySession;
+    }
+    
+    // Check database
+    const dbSession = await VideoCallSessionModel.findOne({
+      appointmentId,
+      status: { $in: ["waiting", "active"] }
+    }).lean();
+    
+    if (dbSession) {
+      const session: VideoCallSession = {
+        roomId: dbSession.roomId,
+        appointmentId: dbSession.appointmentId,
+        doctorId: dbSession.doctorId,
+        patientId: dbSession.patientId,
+        status: dbSession.status,
+        startedAt: dbSession.startedAt,
+        endedAt: dbSession.endedAt,
+        initiatedBy: dbSession.initiatedBy,
+        doctorName: dbSession.doctorName,
+        patientName: dbSession.patientName
+      };
+      
+      // Cache it
+      this.activeSession.set(dbSession.roomId, session);
+      return session;
+    }
+    
+    return null;
   }
 }
