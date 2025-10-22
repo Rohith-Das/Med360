@@ -142,57 +142,68 @@ export class SocketServer {
 
   private setupVideoCallEvents(socket: AuthenticatedSocket) {
     // Join video room
-    socket.on('video:join-room', (data: { roomId: string; appointmentId?: string; userId?: string; userName?: string; userRole?: string }) => {
-      const { roomId, appointmentId } = data;
-      
-      socket.join(roomId);
-      console.log(`${socket.userName} joined video room ${roomId}`);
-      
-      if (!this.activeVideoRooms.has(roomId)) {
-        this.activeVideoRooms.set(roomId, new Set());
-        this.roomParticipants.set(roomId, new Map());
-      }
-      
-      this.activeVideoRooms.get(roomId)!.add(socket.id);
-      this.userRoomMapping.set(socket.id, roomId);
+// In the video:join-room event handler
+socket.on('video:join-room', (data: { roomId: string; appointmentId?: string; userId?: string; userName?: string; userRole?: string }) => {
+  const { roomId, appointmentId } = data;
+  
+  socket.join(roomId);
+  console.log(`${socket.userName} joined video room ${roomId}`);
+  
+  if (!this.activeVideoRooms.has(roomId)) {
+    this.activeVideoRooms.set(roomId, new Set());
+    this.roomParticipants.set(roomId, new Map());
+  }
+  
+  this.activeVideoRooms.get(roomId)!.add(socket.id);
+  this.userRoomMapping.set(socket.id, roomId);
 
-      // Store participant data
-      const participantData = {
-        userId: socket.userId,
-        userName: socket.userName,
-        socketId: socket.id,
-        userRole: socket.userRole,
-        joinedAt: new Date()
-      };
-      this.roomParticipants.get(roomId)!.set(socket.id, participantData);
+  // Store participant data - FIXED: Use userId as key to prevent duplicates
+  const participantData = {
+    userId: socket.userId,
+    userName: socket.userName,
+    socketId: socket.id,
+    userRole: socket.userRole,
+    joinedAt: new Date()
+  };
+  
+  // Remove any existing participant with same userId
+  const roomParticipantsMap = this.roomParticipants.get(roomId)!;
+  for (const [existingSocketId, existingData] of roomParticipantsMap.entries()) {
+    if (existingData.userId === socket.userId && existingSocketId !== socket.id) {
+      roomParticipantsMap.delete(existingSocketId);
+      console.log(`🧹 Removed duplicate participant: ${socket.userName}`);
+    }
+  }
+  
+  roomParticipantsMap.set(socket.id, participantData);
 
-      const participantsCount = this.activeVideoRooms.get(roomId)!.size;
+  const participantsCount = roomParticipantsMap.size;
 
-      // Get all current room participants BEFORE notifying
-      const allParticipants = Array.from(this.roomParticipants.get(roomId)!.values());
+  // Get all current room participants BEFORE notifying (excluding self)
+  const allParticipants = Array.from(roomParticipantsMap.values())
+    .filter(p => p.userId !== socket.userId);
 
-      console.log(`Room ${roomId} now has ${participantsCount} participants`);
-      console.log(`All participants:`, allParticipants);
+  console.log(`Room ${roomId} now has ${participantsCount} participants`);
+  console.log(`All participants:`, allParticipants);
 
-      // CRITICAL: Notify EXISTING participants about the new joiner
-      socket.to(roomId).emit('video:participant-joined', {
-        userId: socket.userId,
-        userName: socket.userName,
-        userRole: socket.userRole,
-        socketId: socket.id,
-        participantsCount
-      });
+  // CRITICAL FIX: Notify EXISTING participants about the new joiner
+  socket.to(roomId).emit('video:participant-joined', {
+    userId: socket.userId,
+    userName: socket.userName,
+    userRole: socket.userRole,
+    socketId: socket.id,
+    participantsCount
+  });
 
-      // CRITICAL: Send the new joiner the list of ALL current participants (excluding themselves)
-      const otherParticipants = allParticipants.filter(p => p.socketId !== socket.id);
-      socket.emit('video:room-participants', {
-        roomId,
-        participants: otherParticipants,
-        participantsCount: allParticipants.length
-      });
+  // CRITICAL FIX: Send the new joiner the list of ALL current participants (excluding themselves)
+  socket.emit('video:room-participants', {
+    roomId,
+    participants: allParticipants,
+    participantsCount: allParticipants.length
+  });
 
-      console.log(`✅ Sent room-participants to new joiner ${socket.id}: ${otherParticipants.length} other participants`);
-    });
+  console.log(`✅ Sent room-participants to new joiner ${socket.id}: ${allParticipants.length} other participants`);
+});
 
     // WebRTC signaling - offer
     socket.on('video:offer', (data: { roomId: string; offer: any; targetSocketId?: string }) => {

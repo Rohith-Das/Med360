@@ -61,6 +61,14 @@ const VideoCallPage: React.FC = () => {
           appointmentId: locationState.appointmentId,
           isIncoming: locationState.isIncoming
         });
+         if (!socketService.isSocketConnected()) {
+        console.log('🔄 Socket not connected, reconnecting...');
+        // Reconnect socket if needed
+        socketService.connect(userId, userRole);
+        
+        // Wait a bit for connection
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
 
         // Join the video room via socket
         socketService.joinVideoRoom(roomId, {

@@ -62,6 +62,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
   const socketRef = useRef<Socket | null>(null);
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const processedParticipants = useRef<Set<string>>(new Set());
+  const connectionAttempts = useRef<Map<string, number>>(new Map());
 
   // WebRTC Configuration
   const rtcConfiguration: RTCConfiguration = {
@@ -267,9 +268,9 @@ const VideoCall: React.FC<VideoCallProps> = ({
         
         if (!pc) return;
 
-        // Add participant
+        // Add participant only if they don't exist
         setParticipants(prev => {
-          const exists = prev.find(p => p.socketId === data.fromSocketId);
+          const exists = prev.find(p => p.userId === data.fromUserId);
           if (!exists) {
             return [...prev, {
               userId: data.fromUserId,
@@ -376,6 +377,23 @@ const VideoCall: React.FC<VideoCallProps> = ({
     }
   }, []);
 
+  // Clean up duplicate participants
+  const cleanupDuplicateParticipants = useCallback(() => {
+    setParticipants(prev => {
+      const uniqueParticipants = prev.filter((participant, index, self) =>
+        index === self.findIndex(p => 
+          p.userId === participant.userId
+        )
+      );
+      
+      if (uniqueParticipants.length !== prev.length) {
+        console.log(`🧹 Cleaned up ${prev.length - uniqueParticipants.length} duplicate participants`);
+      }
+      
+      return uniqueParticipants;
+    });
+  }, []);
+
   // Initialize Socket
   useEffect(() => {
     const token = getAuthToken();
@@ -417,7 +435,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
       setError('Failed to connect to video call server');
     });
 
-    // Participant joined - CRITICAL for bidirectional setup
+    // Participant joined - FIXED: Prevent duplicates and self-connections
     newSocket.on('video:participant-joined', async (data: any) => {
       console.log('👤 Participant joined:', data);
       const participantSocketId = data.socketId;
@@ -434,9 +452,9 @@ const VideoCall: React.FC<VideoCallProps> = ({
       }
       processedParticipants.current.add(participantSocketId);
 
-      // Add to participants list
+      // Add to participants list only if not already present
       setParticipants(prev => {
-        const exists = prev.find(p => p.socketId === participantSocketId);
+        const exists = prev.find(p => p.userId === data.userId);
         if (!exists) {
           return [...prev, {
             userId: data.userId,
@@ -479,33 +497,28 @@ const VideoCall: React.FC<VideoCallProps> = ({
       }
     });
 
-    // Room participants list - only for initial setup
+    // Room participants list - FIXED: Handle only unique participants
     newSocket.on('video:room-participants', async (data: any) => {
       console.log('📋 Room participants list:', data);
       
       if (data.participants && data.participants.length > 0 && isCallInitiated && localStreamRef.current) {
+        const newParticipants: Participant[] = [];
+        
         // Only process new participants
         for (const participant of data.participants) {
           if (participant.socketId !== newSocket.id && !processedParticipants.current.has(participant.socketId)) {
             console.log(`🔄 Processing initial participant: ${participant.socketId}`);
             processedParticipants.current.add(participant.socketId);
 
-            // Add to state
-            setParticipants(prev => {
-              const exists = prev.find(p => p.socketId === participant.socketId);
-              if (!exists) {
-                return [...prev, {
-                  userId: participant.userId,
-                  userName: participant.userName || 'Unknown',
-                  socketId: participant.socketId,
-                  userRole: (participant.userRole || 'patient') as 'doctor' | 'patient',
-                  isMuted: false,
-                  isVideoOff: false,
-                  isSharingScreen: false,
-                  remoteStream: undefined
-                }];
-              }
-              return prev;
+            newParticipants.push({
+              userId: participant.userId,
+              userName: participant.userName || 'Unknown',
+              socketId: participant.socketId,
+              userRole: (participant.userRole || 'patient') as 'doctor' | 'patient',
+              isMuted: false,
+              isVideoOff: false,
+              isSharingScreen: false,
+              remoteStream: undefined
             });
 
             // Create peer connection
@@ -533,15 +546,26 @@ const VideoCall: React.FC<VideoCallProps> = ({
             }
           }
         }
+
+        // Update state with all new participants at once
+        if (newParticipants.length > 0) {
+          setParticipants(prev => {
+            const existingUserIds = new Set(prev.map(p => p.userId));
+            const uniqueNewParticipants = newParticipants.filter(p => !existingUserIds.has(p.userId));
+            return [...prev, ...uniqueNewParticipants];
+          });
+        }
       }
     });
 
-    // Participant left
+    // Participant left - FIXED: Proper cleanup
     newSocket.on('video:participant-left', (data: any) => {
       console.log('👋 Participant left:', data);
       const socketId = data.socketId;
+      const userId = data.userId;
       
-      setParticipants(prev => prev.filter(p => p.socketId !== socketId));
+      // Remove by userId to ensure all duplicates are removed
+      setParticipants(prev => prev.filter(p => p.userId !== userId));
       
       const pc = peerConnections.current.get(socketId);
       if (pc) {
@@ -551,6 +575,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
       iceCandidatesQueue.current.delete(socketId);
       remoteVideoRefs.current.delete(socketId);
       processedParticipants.current.delete(socketId);
+      connectionAttempts.current.delete(socketId);
       
       toast.info(`${data.userName || 'Participant'} left the call`);
     });
@@ -611,6 +636,15 @@ const VideoCall: React.FC<VideoCallProps> = ({
       socketRef.current = null;
     };
   }, [userRole, userId, handleOffer, handleAnswer, handleIceCandidate, isCallInitiated, roomId, appointmentId, userName, onCallEnd]);
+
+  // Clean up duplicates periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      cleanupDuplicateParticipants();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [cleanupDuplicateParticipants]);
 
   // Start Call
   const startCall = useCallback(async () => {
@@ -706,6 +740,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
       iceCandidatesQueue.current.clear();
       remoteVideoRefs.current.clear();
       processedParticipants.current.clear();
+      connectionAttempts.current.clear();
       
       localStreamRef.current = null;
       screenStreamRef.current = null;
@@ -836,6 +871,9 @@ const VideoCall: React.FC<VideoCallProps> = ({
     };
   }, []);
 
+  // Calculate actual participant count (excluding self)
+  const actualParticipantCount = participants.filter(p => p.userId !== userId).length;
+
   // Incoming call UI
   if (incomingCall && !isCallInitiated) {
     return (
@@ -925,7 +963,9 @@ const VideoCall: React.FC<VideoCallProps> = ({
             </div>
             <div className="flex items-center space-x-2">
               <Users className="h-4 w-4 text-gray-400" />
-              <span className="text-sm text-gray-400">{participants.length + 1}</span>
+              <span className="text-sm text-gray-400">
+                {actualParticipantCount} participant{actualParticipantCount !== 1 ? 's' : ''}
+              </span>
             </div>
           </div>
         </div>
@@ -935,17 +975,19 @@ const VideoCall: React.FC<VideoCallProps> = ({
       <div className="flex-1 flex flex-col lg:flex-row p-4 space-y-4 lg:space-y-0 lg:space-x-4">
         {/* Remote Videos - Grid */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[70vh]">
-          {participants.length === 0 ? (
+          {actualParticipantCount === 0 ? (
             <div className="bg-black rounded-lg flex items-center justify-center col-span-full h-96 lg:h-full">
               <div className="text-center">
                 <Users className="h-12 w-12 text-gray-500 mx-auto mb-2" />
                 <p className="text-gray-400">Waiting for other participant...</p>
-                <p className="text-sm text-gray-500 mt-2">Participants: {participants.length}</p>
+                <p className="text-sm text-gray-500 mt-2">Participants: {actualParticipantCount}</p>
               </div>
             </div>
           ) : (
-            participants.map((participant) => (
-              <div key={participant.socketId} className="relative bg-black rounded-lg overflow-hidden">
+            participants
+              .filter(participant => participant.userId !== userId) // Exclude self
+              .map((participant) => (
+              <div key={`${participant.userId}-${participant.socketId}`} className="relative bg-black rounded-lg overflow-hidden">
                 <video
                   ref={(el) => {
                     if (el) {
@@ -960,7 +1002,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
                   autoPlay
                   playsInline
                   className="w-full h-full object-cover"
-                  style={{ height: participants.length === 1 ? '70vh' : '35vh' }}
+                  style={{ height: actualParticipantCount === 1 ? '70vh' : '35vh' }}
                 />
                 
                 {/* No stream placeholder */}
@@ -1065,13 +1107,15 @@ const VideoCall: React.FC<VideoCallProps> = ({
             </div>
 
             {/* Participants List */}
-            {participants.length > 0 && (
+            {actualParticipantCount > 0 && (
               <div className="mt-6">
-                <h4 className="text-sm font-medium mb-3 text-gray-400">Participants</h4>
+                <h4 className="text-sm font-medium mb-3 text-gray-400">Participants ({actualParticipantCount})</h4>
                 <div className="space-y-2">
-                  {participants.map(participant => (
+                  {participants
+                    .filter(participant => participant.userId !== userId)
+                    .map(participant => (
                     <div 
-                      key={participant.socketId} 
+                      key={`${participant.userId}-${participant.socketId}`} 
                       className="flex items-center justify-between bg-gray-700 p-3 rounded-lg"
                     >
                       <div>
