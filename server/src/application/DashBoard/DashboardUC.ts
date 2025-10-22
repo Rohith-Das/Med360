@@ -24,6 +24,19 @@ export interface AppointmentStatsResponse {
   revenue: number;
 }
 
+export interface RevenueStatsResponse{
+  totoalRevenue:number;
+  totalAppointments:number;
+  averageRevenue:number;
+  chartData:Array<{
+    date:string;
+    revenue:number;
+    appointments:number
+  }>;
+  previousPeriodRevenue:number;
+  growthPercentage:number
+}
+
 @injectable()
 export class DashBoardUC{
       constructor(
@@ -59,7 +72,7 @@ export class DashBoardUC{
     }
     return {startDate,endDate}
   }
-  
+
   async getSpecializationStats():Promise<SpecializationStatsResponse[]>{
     return await this.DashRepo.getSpecializationStats()
   }

@@ -5,9 +5,9 @@ import { toast, ToastContainer } from "react-toastify";
 import DoctorNavbar from "@/components/doctor/DoctorNavbar";
 import { Video, VideoOff, Calendar, User, Clock } from "lucide-react";
 import { useSocket } from "@/components/providers/SocketProvider";
-import VideoCall from "@/components/videoCall/VideoCall";
 import { useAppSelector } from "@/app/hooks";
 import { socketService } from "@/features/notification/socket";
+import { useNavigate } from "react-router-dom";
 
 interface AppointmentData {
   _id: string;
@@ -33,10 +33,11 @@ interface VideoCallState {
 }
 
 const DoctorAppointments: React.FC = () => {
+
+  const navigate=useNavigate()
   const [appointments, setAppointments] = useState<AppointmentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [videoCall, setVideoCall] = useState<VideoCallState>({ active: false });
   const { isConnected } = useSocket();
   const doctor = useAppSelector((state) => state.doctorAuth.doctor);
   const { incomingCallsData } = useAppSelector((state) => state.notifications);
@@ -58,7 +59,14 @@ const DoctorAppointments: React.FC = () => {
         autoClose: 15000,
         onClick: () => {
           console.log('🎯 Toast clicked - accepting call');
-          acceptIncomingCall(data.roomId, data.appointmentId, data.initiatorName || "Patient");
+          navigate(`/video-call/${data.roomId}`,{
+            state:{
+              appointmentId:data.appointmentId,
+              userRole:'doctor',
+              isIncoming:true,
+             callerName: data.initiatorName || "Patient"
+            }
+          })
         },
       });
     };
@@ -66,7 +74,7 @@ const DoctorAppointments: React.FC = () => {
     const handleCallEnded = (event: Event) => {
       const data = (event as CustomEvent).detail;
       console.log("📞 Video call ended:", data);
-      setVideoCall({ active: false });
+    
       toast.info("Video call has ended", { position: "top-right" });
     };
 
@@ -77,7 +85,7 @@ const DoctorAppointments: React.FC = () => {
       window.removeEventListener("incoming_video_call", handleIncomingCall);
       window.removeEventListener("video_call_ended", handleCallEnded);
     };
-  }, [isConnected]);
+  }, [isConnected,navigate]);
 
   const fetchAppointments = async () => {
     try {
@@ -109,13 +117,14 @@ const DoctorAppointments: React.FC = () => {
       if (response.data.success) {
         console.log('✅ Video call initiated:', response.data.data);
         toast.success("Video call initiated! Notification sent to patient.");
-        
-        setVideoCall({
-          active: true,
-          roomId: response.data.data.roomId,
-          appointmentId,
-          isIncoming: false,
-        });
+        navigate(`/video-call/${response.data.data.roomId}`,{
+          state:{
+            appointmentId,
+            userRole:'doctor',
+            isIncoming:false
+          }
+        })
+      
 
         // Join the room immediately after initiating
         socketService.joinVideoRoom(response.data.data.roomId, {
@@ -143,13 +152,15 @@ const DoctorAppointments: React.FC = () => {
       if (response.data.success) {
         console.log('✅ Successfully joined call');
         
-        setVideoCall({
-          active: true,
-          roomId,
+      navigate(`/video-call/${roomId}`,{
+        state:{
           appointmentId,
-          isIncoming: true,
-          callerName,
-        });
+          userRole:'doctor',
+          isIncoming:true,
+          callerName
+        }
+      })
+      toast.success('joined video call successfully')
 
         socketService.joinVideoRoom(roomId, {
           appointmentId,
@@ -164,12 +175,6 @@ const DoctorAppointments: React.FC = () => {
       console.error('💥 Error accepting call:', error);
       toast.error(error.response?.data?.message || 'Failed to join call');
     }
-  };
-
-  const handleVideoCallEnd = () => {
-    console.log('📞 Ending video call');
-    setVideoCall({ active: false });
-    fetchAppointments();
   };
 
   const formatDate = (dateString: string) => {
@@ -206,20 +211,7 @@ const DoctorAppointments: React.FC = () => {
     return appointmentId in incomingCallsData;
   };
 
-  if (videoCall.active && videoCall.appointmentId) {
-    return (
-      <VideoCall
-        roomId={videoCall.roomId}
-        appointmentId={videoCall.appointmentId}
-        userRole="doctor"
-        userName={doctor?.name || "Doctor"}
-        userId={doctor?.id || "doctor-id"}
-        onCallEnd={handleVideoCallEnd}
-        isIncoming={videoCall.isIncoming}
-        callerName={videoCall.callerName}
-      />
-    );
-  }
+
 
   if (loading) {
     return (

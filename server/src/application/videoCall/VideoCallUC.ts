@@ -30,7 +30,6 @@ export class VideoCallUseCase {
     @inject("IPatientRepository") private patientRepo: IPatientRepository,
     @inject("IDoctorRepository") private doctorRepo: IDoctorRepository
   ) {
-    // Load active sessions from DB on initialization
     this.loadActiveSessions();
   }
 
@@ -58,9 +57,9 @@ export class VideoCallUseCase {
         });
       });
 
-      console.log(`✅ Loaded ${activeSessions.length} active sessions from database`);
+      console.log(`Loaded ${activeSessions.length} active sessions from database`);
     } catch (error) {
-      console.error('❌ Failed to load active sessions:', error);
+      console.error('Failed to load active sessions:', error);
     }
   }
 
@@ -72,19 +71,19 @@ export class VideoCallUseCase {
     let session = this.activeSession.get(roomId);
     
     if (session) {
-      console.log(`✅ Session found in memory for room: ${roomId}`);
+      console.log(`Session found in memory for room: ${roomId}`);
       return session;
     }
 
     // If not in memory, check database
-    console.log(`🔍 Session not in memory, checking database for room: ${roomId}`);
+    console.log(`Session not in memory, checking database for room: ${roomId}`);
     const dbSession = await VideoCallSessionModel.findOne({
       roomId,
       status: { $in: ["waiting", "active"] }
     }).lean();
 
     if (dbSession) {
-      console.log(`✅ Session found in database for room: ${roomId}`);
+      console.log(`Session found in database for room: ${roomId}`);
       
       // Convert MongoDB document to VideoCallSession and cache it
       session = {
@@ -105,7 +104,7 @@ export class VideoCallUseCase {
       return session;
     }
 
-    console.error(`❌ Session not found in memory or database for room: ${roomId}`);
+    console.error(`Session not found in memory or database for room: ${roomId}`);
     return null;
   }
 
@@ -138,7 +137,7 @@ export class VideoCallUseCase {
     }).lean();
 
     if (existingSession) {
-      console.log(`✅ Found existing session for appointment: ${appointmentId}`);
+      console.log(`Found existing session for appointment: ${appointmentId}`);
       const session: VideoCallSession = {
         roomId: existingSession.roomId,
         appointmentId: existingSession.appointmentId,
@@ -188,7 +187,7 @@ export class VideoCallUseCase {
     // Save to both database and memory
     await VideoCallSessionModel.create(session);
     this.activeSession.set(roomId, session);
-    console.log(`✅ Video call session created and cached: ${roomId}`);
+    console.log(`Video call session created and cached: ${roomId}`);
 
     // Enhanced socket notification
     const completeCallData = {
@@ -208,7 +207,7 @@ export class VideoCallUseCase {
       timestamp: new Date().toISOString()
     };
 
-    console.log(`📞 Sending incoming call to ${recipientRole}: ${recipientId}`);
+    console.log(`Sending incoming call to ${recipientRole}: ${recipientId}`);
     
     const socketServer = getSocketServer();
     let socketSent = false;
@@ -220,7 +219,7 @@ export class VideoCallUseCase {
     }
 
     if (!socketSent) {
-      console.warn(`⚠️ Socket notification failed - user ${recipientId} may be offline`);
+      console.warn(`Socket notification failed - user ${recipientId} may be offline`);
     }
     
     // Create persistent notification
@@ -237,23 +236,23 @@ export class VideoCallUseCase {
         message: `Join the video call for your appointment on ${appointment.date.toISOString().split("T")[0]}`,
         data: completeCallData,
       });
-      console.log(`✅ Persistent notification created with roomId: ${roomId}`);
+      console.log(`Persistent notification created with roomId: ${roomId}`);
     } catch (error) {
-      console.error(`❌ Failed to create notification:`, error);
+      console.error(`Failed to create notification:`, error);
     }
     
     return session;
   }
 
   async joinCall(roomId: string, userId: string): Promise<VideoCallSession | null> {
-    console.log(`🔵 Join call attempt - Room: ${roomId}, User: ${userId}`);
+    console.log(`Join call attempt - Room: ${roomId}, User: ${userId}`);
     
     // Get session from memory or database
     const session = await this.getSessionFromMemoryOrDB(roomId);
     
     if (!session) {
-      console.error(`❌ Video call session not found for room: ${roomId}`);
-      console.log(`📋 Active in-memory sessions:`, Array.from(this.activeSession.keys()));
+      console.error(`Video call session not found for room: ${roomId}`);
+      console.log(`Active in-memory sessions:`, Array.from(this.activeSession.keys()));
       throw new Error("Video call session not found or expired");
     }
     
@@ -261,7 +260,7 @@ export class VideoCallUseCase {
     const isPatient = session.patientId === userId;
 
     if (!isDoctor && !isPatient) {
-      console.error(`❌ Unauthorized join attempt by ${userId} for room ${roomId}`);
+      console.error(`Unauthorized join attempt by ${userId} for room ${roomId}`);
       throw new Error("Unauthorized to join this video call");
     }
     
@@ -271,55 +270,34 @@ export class VideoCallUseCase {
       : await this.patientRepo.findById(userId);
     const userName = userData?.name || (isDoctor ? 'Doctor' : 'Patient');
     
-    console.log(`✅ User ${userName} (${userRole}) authorized to join room ${roomId}`);
+    console.log(`User ${userName} (${userRole}) authorized to join room ${roomId}`);
 
     if (session.status === "waiting") {
       session.status = "active";
       this.activeSession.set(roomId, session);
-      console.log(`🟢 Call status updated to ACTIVE for room ${roomId}`);
+      console.log(`Call status updated to ACTIVE for room ${roomId}`);
 
       await VideoCallSessionModel.updateOne(
         { roomId },
         { $set: { status: 'active' } }
       );
-      console.log(`✅ Session status persisted to MongoDB for room: ${roomId}`);
+      console.log(`Session status persisted to MongoDB for room: ${roomId}`);
     }
 
     // Notify via socket
     const socketServer = getSocketServer();
     const otherUserId = isDoctor ? session.patientId : session.doctorId;
 
-    socketServer.sendToUser(otherUserId, 'call_participant_joined', {
-      roomId,
+    // Send participant-joined to notify existing participants
+    socketServer.sendToRoom(roomId, 'video:participant-joined', {
       userId,
       userName,
       userRole,
       socketId: socketServer.getSocketId(userId),
-      status: session.status,
+      participantsCount: 2
     });
 
-    const participants = [
-      {
-        userId: session.doctorId,
-        userName: session.doctorName || 'Doctor',
-        socketId: socketServer.getSocketId(session.doctorId),
-        userRole: 'doctor' as const
-      },
-      {
-        userId: session.patientId,
-        userName: session.patientName || 'Patient',
-        socketId: socketServer.getSocketId(session.patientId),
-        userRole: 'patient' as const
-      }
-    ].filter(p => p.socketId);
-
-    socketServer.sendToRoom(roomId, 'video:room-participants', {
-      roomId,
-      participants,
-      participantsCount: participants.length
-    });
-
-    console.log(`✅ User ${userName} (${userRole}) successfully joined video call ${roomId}`);
+    console.log(`User ${userName} (${userRole}) successfully joined video call ${roomId}`);
     return session;
   }
 
@@ -344,7 +322,7 @@ export class VideoCallUseCase {
       { roomId },
       { $set: { status: "ended", endedAt: session.endedAt } }
     );
-    console.log(`✅ Session ended and persisted to MongoDB for room: ${roomId}`);
+    console.log(`Session ended and persisted to MongoDB for room: ${roomId}`);
 
     const socketServer = getSocketServer();
     const otherUserId = session.doctorId === userId ? session.patientId : session.doctorId;
@@ -357,13 +335,6 @@ export class VideoCallUseCase {
     const initiatorRole: 'doctor' | 'patient' = isDoctor ? 'doctor' : 'patient';
     
     // Notify about call end
-    socketServer.sendCallEndNotification(otherUserId, {
-      roomId,
-      endedBy: userId,
-      endedByName: initiatorName,
-      reason: "ended_by_user",
-    });
-
     socketServer.sendToRoom(roomId, 'video:call-ended', {
       roomId,
       endedBy: userId,
@@ -399,10 +370,10 @@ export class VideoCallUseCase {
     // Clean up session after 5 minutes
     setTimeout(() => {
       this.activeSession.delete(roomId);
-      console.log(`🧹 Cleaned up in-memory session for room: ${roomId}`);
+      console.log(`Cleaned up in-memory session for room: ${roomId}`);
     }, 5 * 60 * 1000);
 
-    console.log(`❌ Video call ended by ${initiatorName} in room: ${roomId} (Duration: ${duration}s)`);
+    console.log(`Video call ended by ${initiatorName} in room: ${roomId} (Duration: ${duration}s)`);
     return true;
   }
 
@@ -456,12 +427,10 @@ export class VideoCallUseCase {
         doctorName: dbSession.doctorName,
         patientName: dbSession.patientName
       };
-      
       // Cache it
       this.activeSession.set(dbSession.roomId, session);
       return session;
     }
-    
     return null;
   }
 }

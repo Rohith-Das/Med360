@@ -46,7 +46,6 @@ const ViewAppointment: React.FC = () => {
   const [showCancelDialog, setShowCancelDialog] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [videoCall, setVideoCall] = useState<VideoCallState>({ active: false });
   const { isConnected } = useSocket();
   const patient = useAppSelector((state) => state.auth.patient);
   const { incomingCallsData } = useAppSelector((state) => state.notifications);
@@ -68,7 +67,14 @@ const ViewAppointment: React.FC = () => {
         autoClose: 15000,
         onClick: () => {
           console.log('🎯 Toast clicked - accepting call');
-          acceptIncomingCall(data.roomId, data.appointmentId, `Dr. ${data.initiatorName || "Doctor"}`);
+          navigate(`/video-call/${data.roomId}`,{
+            state:{
+              appointmentId:data.apointmentId,
+              userRole:'patient',
+              isComing:true,
+              callerName:`Dr ${data.initiatorName||'doctor'}`
+            }
+          })
         },
       });
     };
@@ -76,7 +82,6 @@ const ViewAppointment: React.FC = () => {
     const handleCallEnded = (event: Event) => {
       const data = (event as CustomEvent).detail;
       console.log("📞 Video call ended:", data);
-      setVideoCall({ active: false });
       toast.info("Video call has ended", { position: "top-right" });
     };
 
@@ -87,7 +92,7 @@ const ViewAppointment: React.FC = () => {
       window.removeEventListener("incoming_video_call", handleIncomingCall);
       window.removeEventListener("video_call_ended", handleCallEnded);
     };
-  }, [isConnected]);
+  }, [isConnected,navigate]);
 
   const fetchAppointments = async () => {
     try {
@@ -128,12 +133,12 @@ const ViewAppointment: React.FC = () => {
       if (response.data.success) {
         console.log('✅ Video call initiated:', response.data.data);
         toast.success("Video call initiated! Notification sent to doctor.");
-        
-        setVideoCall({
-          active: true,
-          roomId: response.data.data.roomId,
-          appointmentId,
-          isIncoming: false,
+        navigate(`/video-call/${response.data.data.roomId}`, {
+          state: {
+            appointmentId,
+            userRole: 'patient',
+            isIncoming: false
+          }
         });
 
         // Join the room immediately after initiating
@@ -162,13 +167,15 @@ const ViewAppointment: React.FC = () => {
       if (response.data.success) {
         console.log('✅ Successfully joined call');
         
-        setVideoCall({
-          active: true,
-          roomId,
-          appointmentId,
-          isIncoming: true,
-          callerName,
+     navigate(`/video-call/${roomId}`, {
+          state: {
+            appointmentId,
+            userRole: 'patient',
+            isIncoming: true,
+            callerName
+          }
         });
+            toast.success('Joined video call successfully!');
 
         socketService.joinVideoRoom(roomId, {
           appointmentId,
@@ -185,11 +192,7 @@ const ViewAppointment: React.FC = () => {
     }
   };
 
-  const handleVideoCallEnd = () => {
-    console.log('📞 Ending video call');
-    setVideoCall({ active: false });
-    fetchAppointments();
-  };
+
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -315,20 +318,6 @@ const ViewAppointment: React.FC = () => {
     );
   }
 
-  if (videoCall.active && videoCall.appointmentId) {
-    return (
-      <VideoCall
-        roomId={videoCall.roomId}
-        appointmentId={videoCall.appointmentId}
-        userRole="patient"
-        userName={patient?.name || "Patient"}
-        userId={patient?.id || "patient-id"}
-        onCallEnd={handleVideoCallEnd}
-        isIncoming={videoCall.isIncoming}
-        callerName={videoCall.callerName}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

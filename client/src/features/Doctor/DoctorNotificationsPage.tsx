@@ -1,11 +1,10 @@
 // client/src/features/Doctor/DoctorNotificationsPage.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FaBell, FaCalendarCheck, FaCalendarTimes, FaEye, FaArrowLeft, FaVideo } from 'react-icons/fa';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchNotifications, markNotificationAsRead, Notification } from '../../features/notification/notificationSlice';
 import { useNavigate } from 'react-router-dom';
 import DoctorNavbar from '@/components/doctor/DoctorNavbar';
-import VideoCall from '@/components/videoCall/VideoCall';
 import { useSocket } from '@/components/providers/SocketProvider';
 import doctorAxiosInstance from '@/api/doctorAxiosInstance';
 import { toast } from 'react-toastify';
@@ -30,57 +29,11 @@ const DoctorNotificationsPage: React.FC = () => {
   const { doctor } = useAppSelector((state) => state.doctorAuth);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showVideoCall, setShowVideoCall] = useState<{ 
-    active: boolean; 
-    roomId?: string; 
-    appointmentId?: string; 
-    callerName?: string;
-    isIncoming?: boolean;
-  }>({ active: false });
+  const [isJoiningCall, setIsJoiningCall] = useState(false); // Changed from showVideoCall
+  
   const itemsPerPage = 10;
 
   const incomingCallsCount = Object.keys(incomingCallsData).length;
-
-  // Memoized acceptVideoCall to prevent recreation
-  const acceptVideoCall = useCallback(async (
-    roomId: string, 
-    appointmentId: string, 
-    callerName: string, 
-    isIncoming: boolean = false
-  ) => {
-    try {
-      console.log('🔄 Starting acceptVideoCall:', { roomId, appointmentId, callerName, isIncoming });
-      
-      const response = await doctorAxiosInstance.post(`/videocall/doctor/join/${roomId}`);
-      console.log('📡 API Response:', response.data);
-      
-      if (response.data.success) {
-        console.log('✅ API call successful, setting up video call');
-        
-        setShowVideoCall({ 
-          active: true, 
-          roomId, 
-          appointmentId, 
-          callerName,
-          isIncoming 
-        });
-        
-        console.log('🔌 Joining video room via socket');
-        socketService.joinVideoRoom(roomId, {
-          appointmentId,
-          userId: doctor?.id,
-          userRole: 'doctor',
-          userName: doctor?.name || 'Doctor'
-        });
-        
-        toast.success('Joined video call successfully!');
-      }
-    } catch (error: any) {
-      console.error('💥 Error in acceptVideoCall:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to join call';
-      toast.error(errorMessage);
-    }
-  }, [doctor?.id, doctor?.name]);
 
   // Fetch notifications on mount and filter change
   useEffect(() => {
@@ -92,7 +45,7 @@ const DoctorNotificationsPage: React.FC = () => {
     }));
   }, [dispatch, currentPage, filter]);
 
-  // Socket event handling
+  // Socket event handling - UPDATED for route-based approach
   useEffect(() => {
     if (!isConnected) {
       console.warn('⚠️ Socket not connected, skipping event listeners');
@@ -112,14 +65,22 @@ const DoctorNotificationsPage: React.FC = () => {
         return;
       }
 
-      // Show toast notification with click handler
+      // Show toast notification with direct navigation
       toast.info(`Incoming call from ${data.initiatorName || 'Patient'}`, {
         position: "top-right",
         autoClose: 15000,
         closeOnClick: true,
         onClick: () => {
           console.log('🎯 Toast clicked - accepting call');
-          acceptVideoCall(data.roomId, data.appointmentId, data.initiatorName || 'Patient', true);
+          // Navigate directly to video call page
+          navigate(`/video-call/${data.roomId}`, {
+            state: {
+              appointmentId: data.appointmentId,
+              userRole: 'doctor',
+              isIncoming: true,
+              callerName: data.initiatorName || 'Patient'
+            }
+          });
         }
       });
 
@@ -128,25 +89,14 @@ const DoctorNotificationsPage: React.FC = () => {
       audio.play().catch(e => console.log('Audio play failed:', e));
     };
 
-    const handleAcceptCall = (event: Event) => {
-      const data = (event as CustomEvent).detail;
-      console.log('✅ Accept call event received:', data);
-      acceptVideoCall(data.roomId, data.appointmentId, data.initiatorName, true);
-    };
-
     const handleCallEnded = (event: Event) => {
       const data = (event as CustomEvent).detail;
       console.log('📞 Call ended event received:', data);
-      
-      if (showVideoCall.active) {
-        setShowVideoCall({ active: false });
-        toast.info('Video call has ended');
-      }
+      toast.info('Video call has ended');
     };
 
     // Add event listeners
     window.addEventListener('incoming_video_call', handleIncomingCall);
-    window.addEventListener('accept_video_call', handleAcceptCall);
     window.addEventListener('video_call_ended', handleCallEnded);
     
     console.log('✅ Socket event listeners registered');
@@ -155,10 +105,51 @@ const DoctorNotificationsPage: React.FC = () => {
     return () => {
       console.log('🧹 Cleaning up socket event listeners');
       window.removeEventListener('incoming_video_call', handleIncomingCall);
-      window.removeEventListener('accept_video_call', handleAcceptCall);
       window.removeEventListener('video_call_ended', handleCallEnded);
     };
-  }, [isConnected, showVideoCall.active, acceptVideoCall]);
+  }, [isConnected, navigate]); // Added navigate dependency
+
+  // UPDATED: Simplified acceptVideoCall function - just navigates
+  const acceptVideoCall = async (roomId: string, appointmentId: string, callerName: string, isIncoming: boolean = false) => {
+    try {
+      if (isJoiningCall) return;
+      
+      setIsJoiningCall(true);
+      console.log('🔄 Starting acceptVideoCall:', { roomId, appointmentId, callerName, isIncoming });
+      
+      // Show loading state
+      toast.info('Joining video call...', { autoClose: 2000 });
+      
+      // Verify we can join the call
+      const response = await doctorAxiosInstance.post(`/videocall/doctor/join/${roomId}`);
+      console.log('📡 API Response:', response.data);
+      
+      if (response.data.success) {
+        console.log('✅ API call successful, navigating to video call');
+        
+        // Navigate to video call page
+        navigate(`/video-call/${roomId}`, {
+          state: {
+            appointmentId,
+            userRole: 'doctor',
+            isIncoming,
+            callerName
+          }
+        });
+        
+        // Socket join will be handled in VideoCallPage component
+        toast.success('Joined video call successfully!');
+      } else {
+        throw new Error(response.data.message || 'Failed to join call');
+      }
+    } catch (error: any) {
+      console.error('💥 Error in acceptVideoCall:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to join call';
+      toast.error(errorMessage);
+    } finally {
+      setIsJoiningCall(false);
+    }
+  };
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -168,6 +159,7 @@ const DoctorNotificationsPage: React.FC = () => {
     }
   };
 
+  // UPDATED: Enhanced notification join handler
   const handleJoinCall = async (notification: Notification) => {
     console.log('🎯 handleJoinCall called with notification:', notification);
     
@@ -177,7 +169,13 @@ const DoctorNotificationsPage: React.FC = () => {
       return;
     }
 
+    if (isJoiningCall) {
+      toast.info('Already joining a call...');
+      return;
+    }
+
     try {
+      console.log('✅ Video call notification detected');
       const appointmentId = notification.data?.appointmentId;
       
       if (!appointmentId) {
@@ -195,11 +193,11 @@ const DoctorNotificationsPage: React.FC = () => {
         // Mark notification as read
         await handleMarkAsRead(notification.id);
         
-        // Join the call
+        // Join the call with proper type checking
         await acceptVideoCall(
           storedCallData.roomId,
           storedCallData.appointmentId,
-          storedCallData.initiatorName || 'Patient',
+          storedCallData.initiatorName || 'Patient', // Provide default value
           false
         );
       } else {
@@ -212,7 +210,7 @@ const DoctorNotificationsPage: React.FC = () => {
           await acceptVideoCall(
             notification.data.roomId,
             appointmentId,
-            notification.data.initiatorName || 'Patient',
+            notification.data.initiatorName || 'Patient', // Provide default value
             false
           );
         } else {
@@ -284,21 +282,7 @@ const DoctorNotificationsPage: React.FC = () => {
     );
   };
 
-  // Show video call component if active
-  if (showVideoCall.active) {
-    return (
-      <VideoCall
-        roomId={showVideoCall.roomId}
-        appointmentId={showVideoCall.appointmentId || ''}
-        userRole="doctor"
-        userName={doctor?.name || "Doctor"}
-        userId={doctor?.id || "doctor-id"}
-        onCallEnd={() => setShowVideoCall({ active: false })}
-        isIncoming={showVideoCall.isIncoming || false}
-        callerName={showVideoCall.callerName}
-      />
-    );
-  }
+  // REMOVED: Conditional VideoCall rendering since we're using routes
 
   if (loading && notifications.length === 0) {
     return (
@@ -443,7 +427,7 @@ const DoctorNotificationsPage: React.FC = () => {
                           {notification.type === 'video_call_initiated' && (
                             <button
                               onClick={() => handleJoinCall(notification)}
-                              disabled={!hasCallData || loading}
+                              disabled={!hasCallData || isJoiningCall}
                               className={`px-4 py-2 rounded-lg transition-all text-sm font-medium flex items-center gap-2 ${
                                 hasCallData 
                                   ? 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg' 
@@ -452,7 +436,7 @@ const DoctorNotificationsPage: React.FC = () => {
                               title={hasCallData ? 'Join Call' : 'Waiting for call data...'}
                             >
                               <FaVideo />
-                              {loading ? 'Joining...' : hasCallData ? 'Join Call' : 'Waiting...'}
+                              {isJoiningCall ? 'Joining...' : hasCallData ? 'Join Call' : 'Waiting...'}
                             </button>
                           )}
                           {!notification.isRead && (

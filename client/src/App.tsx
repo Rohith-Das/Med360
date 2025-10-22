@@ -32,6 +32,8 @@ import DoctorAppointments from "./pages/doctorPages/DoctorAppointmentList";
 import PatientNotificationsPage from "./pages/patientPages/PatientNotificationsPage";
 import { useAppSelector } from "./app/hooks";
 import AdminDashboardPage from "./pages/adminPages/AdminDashboardPage";
+import VideoCallPage from "./pages/VideoCallPage";
+
 
 function App() {
 
@@ -112,7 +114,7 @@ function App() {
  <Route path="/doctor/appointments" element={<DoctorAppointments />} />
   <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
 
-
+<Route path="/video-call/:roomId" element={<VideoCallPage />} />
      
     </Routes>
   );
