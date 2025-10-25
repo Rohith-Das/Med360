@@ -213,28 +213,6 @@ const VideoCall: React.FC<VideoCallProps> = ({
       console.log(`🌐 Connection state for ${socketId}: ${pc.connectionState}`);
     };
 
-    // Negotiation needed handler
-    pc.onnegotiationneeded = async () => {
-      if (isInitiator && pc.signalingState === 'stable') {
-        console.log(`🤝 Negotiation needed for ${socketId}, creating offer...`);
-        try {
-          const offer = await pc.createOffer({
-            offerToReceiveAudio: true,
-            offerToReceiveVideo: true
-          });
-          await pc.setLocalDescription(offer);
-          
-          socketRef.current?.emit('video:offer', {
-            roomId,
-            offer: pc.localDescription,
-            targetSocketId: socketId
-          });
-        } catch (error) {
-          console.error('❌ Error in negotiation:', error);
-        }
-      }
-    };
-
     return pc;
   }, [roomId]);
 
@@ -352,6 +330,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
       } catch (error) {
         console.error('❌ Error handling answer:', error);
       }
+      
     }
   }, []);
 
@@ -787,66 +766,69 @@ const VideoCall: React.FC<VideoCallProps> = ({
 
   // Toggle Screen Share
   const toggleScreenShare = async () => {
-    try {
-      if (!isSharingScreen) {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: false
-        });
-        screenStreamRef.current = screenStream;
+  try {
+    if (!isSharingScreen) {
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false
+      });
+      screenStreamRef.current = screenStream;
+      
+      // Replace video track for all peer connections
+      const screenTrack = screenStream.getVideoTracks()[0];
+      
+      for (const [socketId, pc] of peerConnections.current.entries()) {
+        if (!pc) continue;
         
-        peerConnections.current.forEach(pc => {
-          if (!pc) return;
-          
-          const videoTrack = screenStream.getVideoTracks()[0];
-          const sender = pc.getSenders().find(s => s.track?.kind === 'video');
-          if (sender && videoTrack) {
-            sender.replaceTrack(videoTrack);
-          }
-        });
-
-        screenStream.getVideoTracks()[0].onended = () => {
-          stopScreenShare();
-        };
-
-        setIsSharingScreen(true);
-        socketRef.current?.emit('video:start-screen-share', { roomId });
-        toast.success('Screen sharing started');
-      } else {
-        stopScreenShare();
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender && screenTrack) {
+          await sender.replaceTrack(screenTrack);
+        }
       }
-    } catch (error) {
-      console.error('❌ Error sharing screen:', error);
-      toast.error('Failed to share screen');
+
+      // Handle when user stops sharing via browser UI
+      screenTrack.onended = () => {
+        stopScreenShare();
+      };
+
+      setIsSharingScreen(true);
+      socketRef.current?.emit('video:start-screen-share', { roomId });
+      toast.success('Screen sharing started');
+    } else {
+      stopScreenShare();
     }
-  };
+  } catch (error) {
+    console.error('❌ Error sharing screen:', error);
+    toast.error('Failed to share screen');
+  }
+};
 
   // Stop Screen Share
-  const stopScreenShare = () => {
-    if (screenStreamRef.current) {
-      // Stop all screen tracks
-      screenStreamRef.current.getTracks().forEach(track => track.stop());
-      screenStreamRef.current = null;
+  const stopScreenShare = async () => {
+  if (screenStreamRef.current) {
+    // Stop all screen tracks
+    screenStreamRef.current.getTracks().forEach(track => track.stop());
+    screenStreamRef.current = null;
 
-      // Replace video track in each peer connection
-      if (localStreamRef.current) {
-        const videoTrack = localStreamRef.current.getVideoTracks()[0];
+    // Replace with camera track for all peer connections
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
 
-        peerConnections.current.forEach(pc => {
-          if (!pc) return;
+      for (const [socketId, pc] of peerConnections.current.entries()) {
+        if (!pc) continue;
 
-          const sender = pc.getSenders().find(s => s.track?.kind === 'video');
-          if (sender && videoTrack) {
-            sender.replaceTrack(videoTrack);
-          }
-        });
+        const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+        if (sender && videoTrack) {
+          await sender.replaceTrack(videoTrack);
+        }
       }
-
-      setIsSharingScreen(false);
-      socketRef.current?.emit('video:stop-screen-share', { roomId });
-      toast.info('Screen sharing stopped');
     }
-  };
+
+    setIsSharingScreen(false);
+    socketRef.current?.emit('video:stop-screen-share', { roomId });
+    toast.info('Screen sharing stopped');
+  }
+};
 
   // Auto-start call when component mounts
   useEffect(() => {
