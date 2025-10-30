@@ -33,6 +33,8 @@ import PatientNotificationsPage from "./pages/patientPages/PatientNotificationsP
 import { useAppSelector } from "./app/hooks";
 import AdminDashboardPage from "./pages/adminPages/AdminDashboardPage";
 import VideoCallPage from "./pages/VideoCallPage";
+import PatientChatPage from "./pages/chatPages/PatientChatPage";
+import DoctorChatPage from "./pages/chatPages/DoctorChatPage";
 
 
 function App() {
@@ -115,7 +117,22 @@ function App() {
   <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
 
 <Route path="/video-call/:roomId" element={<VideoCallPage />} />
-     
+     <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <PatientChatPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/doctor/Doctor-chat"
+        element={
+          <ProtectedRoute>
+            <DoctorChatPage />
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }

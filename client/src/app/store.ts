@@ -6,6 +6,7 @@ import doctorAuthReducer from '../features/auth/doctorAuthSlice';
 import doctorsReducer from '../features/Doctor/doctorSlice';
 import adminDoctorsReducer from '../features/admin/DoctorMgtSlice'
 import notificationReducer from '../features/notification/notificationSlice';
+import chatReducer from '../features/chat/chatSlice';
 
 import {
   persistStore,
@@ -32,12 +33,13 @@ const rootReducer = combineReducers({
   doctors: doctorsReducer,
   adminDoctors: adminDoctorsReducer,
   notifications: notificationReducer,
+  chat: chatReducer,
 });
 
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['auth', 'adminAuth', 'profile', 'doctorAuth', 'doctorProfile']
+  whitelist: ['auth', 'adminAuth', 'profile', 'doctorAuth', 'doctorProfile','chat']
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

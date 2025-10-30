@@ -83,10 +83,13 @@ import { GeminiService } from "../services/GeminiService";
 import { ChatBotUC } from "../../application/ai/chatbotUseCase";
 import { VideoCallUseCase } from "../../application/videoCall/VideoCallUC";
 import { GetDoctorAppointmentUC } from "../../application/Appointment/GetDoctorsAppointmentUC";
-import { IChatRepository } from "../../domain/repositories/ChatRepository";
 import { MongoDashboardRepo } from "../database/repositores/MongoDashboardRepo";
 import { IDashboardRepository } from "../../domain/repositories/DashboardRepository";
 import { DashBoardUC } from "../../application/DashBoard/DashboardUC";
+import { IChatRepository } from "../../domain/repositories/ChatRepository";
+import { MongoChatRepository } from "../database/repositores/MongoChatRepository";
+import { FindOrCreateChatRoomUC } from "../../application/Chats/FindOrCreateChatRoomUC";
+import { SearchUsersUC } from "../../application/Chats/SearchUsersUC";
 
 // Database
 container.registerSingleton(mongoDBClient);
@@ -182,5 +185,9 @@ container.register<IDashboardRepository>('IDashboardRepository',{
 })
 container.registerSingleton(DashBoardUC)
 
-
+container.register<IChatRepository>("IChatRepository", {
+  useClass: MongoChatRepository,
+});
+container.registerSingleton(FindOrCreateChatRoomUC);
+container.registerSingleton(SearchUsersUC);
 export {container}

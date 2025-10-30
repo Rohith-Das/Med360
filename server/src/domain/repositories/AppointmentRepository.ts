@@ -10,4 +10,10 @@ export interface IAppointmentRepository {
   delete(id: string): Promise<boolean>;
   getLastAppointmentDate(doctorId: string, patientId: string): Promise<Date | null>;
  hasUpcomingAppointment(doctorId: string, patientId: string): Promise<boolean>;
+
+   findAppointmentsByDoctorAndPatient(
+    doctorId: string,
+    patientId: string
+  ): Promise<Appointment[]>;
+  
 }

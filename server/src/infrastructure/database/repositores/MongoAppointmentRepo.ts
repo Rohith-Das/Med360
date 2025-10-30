@@ -87,4 +87,10 @@ export class MongoAppointmentRepo implements IAppointmentRepository {
     })
     return !!appointment
   }
+   async findAppointmentsByDoctorAndPatient(
+    doctorId: string,
+    patientId: string
+  ): Promise<Appointment[]> {
+    return await AppointmentModel.find({ doctorId, patientId }).sort({ date: -1 }).exec();
+  }
 }

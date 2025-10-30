@@ -1,12 +1,14 @@
 import mongoose, { Schema } from 'mongoose';
 import { ChatMessage } from '../../../domain/entities/ChatMessage.entity';
+
+
 const ChatMessageSchema = new Schema<ChatMessage>(
   {
     chatRoomId: { type: Schema.Types.ObjectId, ref: 'ChatRoom', required: true, index: true },
-    senderId: { type: String, required: true },
+    senderId: { type: Schema.Types.ObjectId, required: true, refPath: 'senderType' },
     senderType: { type: String, enum: ['doctor', 'patient'], required: true },
-    message: { type: String, required: true },
     messageType: { type: String, enum: ['text', 'image', 'file'], default: 'text' },
+    message: { type: String, required: true },
     fileUrl: { type: String },
     fileName: { type: String },
     fileSize: { type: Number },
@@ -15,9 +17,11 @@ const ChatMessageSchema = new Schema<ChatMessage>(
       doctor: { type: Date },
       patient: { type: Date },
     },
+    status: { type: String, enum: ['sent', 'delivered', 'seen'], default: 'sent' },
   },
   { timestamps: true }
 );
+
 
 // Compound index for efficient message retrieval
 ChatMessageSchema.index({ chatRoomId: 1, createdAt: -1 });

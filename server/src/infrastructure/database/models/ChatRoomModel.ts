@@ -7,9 +7,16 @@ const ChatRoomSchema = new Schema<ChatRoom>(
     doctorId: { type: Schema.Types.ObjectId, ref: 'Doctor', required: true },
     patientId: { type: Schema.Types.ObjectId, ref: 'Patient', required: true },
     lastAppointmentDate: { type: Date, required: true },
+    lastMessage: {
+      text: { type: String },
+      timestamp: { type: Date },
+      senderType: { type: String, enum: ['doctor', 'patient'] },
+    },
+   
   },
   { timestamps: true }
 );
+
 
 ChatRoomSchema.index({ doctorId: 1, patientId: 1 }, { unique: true });
 

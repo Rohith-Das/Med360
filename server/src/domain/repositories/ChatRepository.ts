@@ -1,25 +1,32 @@
-import { ChatRoom ,CreateChatRoomInput } from "../entities/ChatRoom.entity";
-import { ChatMessage,CreateMessageInput } from "../entities/ChatMessage.entity";
+import { ChatRoom  } from "../entities/ChatRoom.entity";
+import { ChatMessage } from "../entities/ChatMessage.entity";
 
-export interface IChatRepository{
-  findChatRoom(doctorId:string,patientId:string):Promise<ChatRoom|null>;
-  createChatRoom(input:CreateChatRoomInput):Promise<ChatRoom>;
-  updateChatRoomExpiry(chatRoomId:string,expiresAt:Date):Promise<ChatRoom>;
-  getChatRoomById(chatRoomId:string):Promise<ChatRoom|null>
-  updateLastAppointmentDate(chatRoomId:string,appointmentDate:Date):Promise<ChatRoom>;
 
-  createMessage(input:CreateMessageInput):Promise<ChatMessage>
-  getMessages(chatRoomId:string,limit?:number,skip?:number):Promise<ChatMessage[]>;
-  markMessagesAsRead(chatRoomId:string,readerId:string,readerType:'doctor'|'patient'):Promise<number>
-  getUnreadCount(chatRoomId: string, userId: string, userType: 'doctor' | 'patient'): Promise<number>;
-
-    canAccessChat(chatRoomId: string, userId: string, userType: 'doctor' | 'patient'): Promise<boolean>;
-  isChatActive(chatRoomId: string): Promise<boolean>;
+export interface IChatRepository {
+  // ChatRoom operations
+  createChatRoom(data: Omit<ChatRoom, 'id'>): Promise<ChatRoom>;
+  findChatRoom(doctorId: string, patientId: string): Promise<ChatRoom | null>;
+  findChatRoomById(roomId: string): Promise<ChatRoom | null>;
+  updateChatRoom(roomId: string, updates: Partial<ChatRoom>): Promise<ChatRoom | null>;
+  deleteChatRoom(roomId: string): Promise<boolean>;
+  getDoctorChatRooms(doctorId: string, limit?: number, offset?: number): Promise<ChatRoom[]>;
+  getPatientChatRooms(patientId: string, limit?: number, offset?: number): Promise<ChatRoom[]>;
   
-  // Utility Methods
-  getUserChatRooms(userId: string, userType: 'doctor' | 'patient'): Promise<ChatRoom[]>;
-  getChatRoomParticipants(chatRoomId: string): Promise<{ doctorId: string; patientId: string }>;
+  createMessage(data: Omit<ChatMessage, 'id'>): Promise<ChatMessage>;
+  findMessageById(messageId: string): Promise<ChatMessage | null>;
+  updateMessage(messageId: string, updates: Partial<ChatMessage>): Promise<ChatMessage | null>;
+  deleteMessage(messageId: string): Promise<boolean>;
+  getChatRoomMessages(roomId: string, limit?: number, offset?: number): Promise<ChatMessage[]>;
+  getUnreadMessages(roomId: string, userType: 'doctor' | 'patient'): Promise<ChatMessage[]>;
+  
+  markMessagesAsRead(roomId: string, userType: 'doctor' | 'patient'): Promise<number>;
+  markMessageAsRead(messageId: string, userType: 'doctor' | 'patient'): Promise<boolean>;
+  
 
-
-
+  getUnreadCount(roomId: string, userType: 'doctor' | 'patient'): Promise<number>;
+  getAllUnreadCount(userId: string, userType: 'doctor' | 'patient'): Promise<number>;
+  
+  // Search
+  searchDoctors(query: string, limit?: number): Promise<any[]>;
+  searchPatients(query: string, limit?: number): Promise<any[]>;
 }

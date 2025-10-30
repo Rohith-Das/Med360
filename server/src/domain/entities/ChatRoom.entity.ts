@@ -1,17 +1,15 @@
-import mongoose,{Schema,Document} from "mongoose";
-
+import mongoose from "mongoose";
 
 export interface ChatRoom {
-  id: string;
-  doctorId: string|mongoose.Types.ObjectId;
-  patientId: string|mongoose.Types.ObjectId;
-  createdAt: Date;
-  updatedAt: Date;
+  id?: string;
+  doctorId: string | mongoose.Types.ObjectId;
+  patientId: string | mongoose.Types.ObjectId;
   lastAppointmentDate: Date;
-}
-
-export interface CreateChatRoomInput {
-  doctorId: string;
-  patientId: string;
-  lastAppointmentDate: Date;
+  lastMessage?:{
+    text:string;
+    timestamp:Date;
+    senderType:'doctor'|'patient'
+  }
+  createdAt?: Date;
+  updatedAt?: Date;
 }

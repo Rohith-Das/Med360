@@ -17,14 +17,25 @@ import ScheduleRouter from "./presentation/routes/ScheduleRoutes";
 import PaymentRouter from "./presentation/routes/PaymentRoutes";
 import VideoCallRouter from "./presentation/routes/VideoCallRoutes";
 import { initializeSocketServer } from "./infrastructure/socket/socketServer";
+import { ChatSocketServer } from "./infrastructure/socket/chatSocketServer";
+import ChatRouter from "./presentation/routes/chatRoutes";
 
+let chatSocketServerInstance: ChatSocketServer;
 
+export const getChatSocketServer = (): ChatSocketServer => {
+  if (!chatSocketServerInstance) {
+    throw new Error('Chat socket server not initialized. Call startServer first.');
+  }
+  return chatSocketServerInstance;
+};
 export const startServer = async () => {
  
 
   const app = express();
   const httpServer=createServer(app)
   const socketServer=initializeSocketServer(httpServer)
+    chatSocketServerInstance = new ChatSocketServer(socketServer.getIO());
+  console.log('✅ Chat Socket Server initialized');
 
   app.use(cors({
     origin: 'http://localhost:5173',
@@ -51,31 +62,53 @@ export const startServer = async () => {
 app.use('/api/schedules', ScheduleRouter);
 app.use("/api/payment", PaymentRouter);
 app.use('/api/videocall', VideoCallRouter);
-
+app.use('/api/chat', ChatRouter);
 
 
 app.get('/api/socket-status',(req,res)=>{
   const mainStats=socketServer.getSocketStats();
+  const chatStats = chatSocketServerInstance.getChatStats();
 
-
-  res.json({
-    success:true,
-    data:{
-      socket:{
-        ...mainStats,
-        path:'/socket.io'
-      },
-      timestamp:new Date().toISOString()
-    }
-  })
-})
+ res.json({
+      success: true,
+      data: {
+        mainSocket: {
+          ...mainStats,
+          path: '/socket.io',
+          description: 'Main socket for video calls and notifications'
+        },
+        chatSocket: {
+          ...chatStats,
+          path: '/chat',
+          description: 'Chat socket for real-time messaging'
+        },
+        server: {
+          port: PORT,
+          environment: process.env.NODE_ENV || 'development'
+        },
+        timestamp: new Date().toISOString()
+      }
+    });
+  });
 
   const dbClient = container.resolve(mongoDBClient);
   await dbClient.connect();
 app.use(express.static(path.join(__dirname, '../../client/build')));
 
   httpServer.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-    console.log(`Main Socket.IO server: http://localhost:${PORT}/socket.io`);
+    console.log(`
+╔═══════════════════════════════════════════════════════════╗
+║                                                           ║
+║   🏥 Med360 Server Started Successfully                   ║
+║                                                           ║
+║   🌐 Server:        http://localhost:${PORT}              ║
+║   🔌 Main Socket:   http://localhost:${PORT}/socket.io   ║
+║   💬 Chat Socket:   http://localhost:${PORT}/chat        ║
+║   📊 Status:        http://localhost:${PORT}/api/socket-status ║
+║                                                           ║
+║   Environment: ${process.env.NODE_ENV || 'development'}                              ║
+║                                                           ║
+╚═══════════════════════════════════════════════════════════╝
+    `);
   });
 };

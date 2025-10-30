@@ -7,6 +7,7 @@ import { Camera, CameraOff, Mic, MicOff, PhoneOff, Monitor, MonitorStop, Phone, 
 import axiosInstance from "@/api/axiosInstance";
 import doctorAxiosInstance from "@/api/doctorAxiosInstance";
 import { toast } from "react-toastify";
+import { P } from "framer-motion/dist/types.d-Cjd591yU";
 
 interface VideoCallProps {
   roomId?: string;
@@ -63,6 +64,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
   const processedParticipants = useRef<Set<string>>(new Set());
   const connectionAttempts = useRef<Map<string, number>>(new Map());
+  const roomParticipantsProcessed = useRef(false);
 
   // WebRTC Configuration
   const rtcConfiguration: RTCConfiguration = {
@@ -138,7 +140,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
     }
 
     const existing = peerConnections.current.get(socketId);
-    if (existing) {
+    if (existing && existing.connectionState !== 'closed') {
       console.log(`Reusing existing peer connection for ${socketId}`);
       return existing;
     }
@@ -155,30 +157,50 @@ const VideoCall: React.FC<VideoCallProps> = ({
       });
     }
 
-    // Handle incoming tracks
+    // Handle incoming tracks with retry mechanism
     pc.ontrack = (event) => {
       console.log(`📹 Received ${event.track.kind} track from ${socketId}`);
       
       if (event.streams && event.streams[0]) {
         const remoteStream = event.streams[0];
         
-        // Update participant with this socketId's stream
+        console.log(`✅ Got remote stream from ${socketId}, tracks:`, 
+          remoteStream.getTracks().map(t => `${t.kind}:${t.id}`));
+        
+        // Update participant state immediately
         setParticipants(prev => 
-          prev.map(p => 
-            p.socketId === socketId 
-              ? { ...p, remoteStream }
-              : p
-          )
+          prev.map(p => {
+            if (p.socketId === socketId) {
+              console.log(`📺 Updating participant ${p.userName} (${p.userId}) with remote stream`);
+              return { ...p, remoteStream };
+            }
+            return p;
+          })
         );
         
-        // Attach to correct video element
-        const videoElement = remoteVideoRefs.current.get(socketId);
-        if (videoElement) {
-          videoElement.srcObject = remoteStream;
-          console.log(`✅ Stream attached to video element for ${socketId}`);
-        } else {
-          console.warn(`❌ No video element found for ${socketId}`);
-        }
+        // CRITICAL: Direct attachment with retry mechanism
+        const attachStream = () => {
+          const videoElement = remoteVideoRefs.current.get(socketId);
+          if (videoElement) {
+            if (videoElement.srcObject !== remoteStream) {
+              console.log(`🔧 Attaching stream to video element for ${socketId}`);
+              videoElement.srcObject = remoteStream;
+              
+              // Ensure playback starts
+              videoElement.play().catch(err => {
+                console.warn('Autoplay prevented, will retry:', err);
+                setTimeout(() => videoElement.play().catch(() => {}), 500);
+              });
+            }
+          } else {
+            console.warn(`⏳ Video element not ready for ${socketId}, retrying...`);
+            setTimeout(attachStream, 100);
+          }
+        };
+        
+        // Try immediate attachment and retry after delay
+        attachStream();
+        setTimeout(attachStream, 300);
       }
     };
 
@@ -199,11 +221,29 @@ const VideoCall: React.FC<VideoCallProps> = ({
       console.log(`🔗 ICE connection state for ${socketId}: ${pc.iceConnectionState}`);
       
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        console.log(`✅ Peer connection established with ${socketId}`);
         setConnectionState('connected');
-        toast.success('Connection established');
+        
+        // Verify stream attachment after connection
+        setTimeout(() => {
+          const videoElement = remoteVideoRefs.current.get(socketId);
+          if (videoElement && !videoElement.srcObject) {
+            console.warn(`⚠️ Video element missing stream after connection, checking participant state...`);
+            setParticipants(prev => {
+              const participant = prev.find(p => p.socketId === socketId);
+              if (participant?.remoteStream && videoElement) {
+                videoElement.srcObject = participant.remoteStream;
+                videoElement.play().catch(() => {});
+              }
+              return prev;
+            });
+          }
+        }, 500);
       } else if (pc.iceConnectionState === 'disconnected') {
+        console.log(`⚠️ Peer ${socketId} disconnected`);
         setConnectionState('disconnected');
       } else if (pc.iceConnectionState === 'failed') {
+        console.log(`❌ Connection failed for ${socketId}, restarting ICE...`);
         setConnectionState('failed');
         pc.restartIce();
       }
@@ -211,9 +251,17 @@ const VideoCall: React.FC<VideoCallProps> = ({
 
     pc.onconnectionstatechange = () => {
       console.log(`🌐 Connection state for ${socketId}: ${pc.connectionState}`);
+      
+      if (pc.connectionState === 'failed') {
+        console.error(`❌ Peer connection failed for ${socketId}`);
+      } else if (pc.connectionState === 'closed') {
+        console.log(`🚪 Peer connection closed for ${socketId}`);
+        peerConnections.current.delete(socketId);
+      } else if (pc.connectionState === 'connected') {
+        console.log(`✅ Peer fully connected with ${socketId}`);
+      }
     };
 
-    // Negotiation needed handler
     return pc;
   }, [roomId]);
 
@@ -247,10 +295,21 @@ const VideoCall: React.FC<VideoCallProps> = ({
         
         if (!pc) return;
 
-        // Add participant only if they don't exist
+        // Add or update participant
         setParticipants(prev => {
-          const exists = prev.find(p => p.userId === data.fromUserId);
-          if (!exists) {
+          const existingIndex = prev.findIndex(p => p.userId === data.fromUserId);
+          if (existingIndex >= 0) {
+            // Update existing participant
+            const updated = [...prev];
+            updated[existingIndex] = {
+              ...updated[existingIndex],
+              socketId: data.fromSocketId,
+              userName: data.fromUserName,
+              remoteStream: undefined
+            };
+            return updated;
+          } else {
+            // Add new participant
             return [...prev, {
               userId: data.fromUserId,
               userName: data.fromUserName,
@@ -262,7 +321,6 @@ const VideoCall: React.FC<VideoCallProps> = ({
               remoteStream: undefined
             }];
           }
-          return prev;
         });
       }
 
@@ -271,6 +329,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
         console.log('Peer connection is closed, cannot set remote description');
         return;
       }
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
       const answer = await pc.createAnswer({
@@ -285,9 +344,12 @@ const VideoCall: React.FC<VideoCallProps> = ({
         targetSocketId: data.fromSocketId
       });
 
+      console.log('✅ Answer sent to:', data.fromSocketId);
+
       // Process queued ICE candidates
       const queuedCandidates = iceCandidatesQueue.current.get(data.fromSocketId) || [];
       if (queuedCandidates.length > 0) {
+        console.log(`Processing ${queuedCandidates.length} queued ICE candidates`);
         for (const candidate of queuedCandidates) {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(candidate));
@@ -375,6 +437,11 @@ const VideoCall: React.FC<VideoCallProps> = ({
 
   // Initialize Socket
   useEffect(() => {
+    if (socketRef.current?.connected) {
+      console.log('Socket already connected, skipping initialization');
+      return;
+    }
+
     const token = getAuthToken();
     if (!token) {
       setError('Authentication token not found');
@@ -391,7 +458,10 @@ const VideoCall: React.FC<VideoCallProps> = ({
       auth: { token, userId, userType: userRole },
       withCredentials: true,
       timeout: 20000,
-      forceNew: true,
+      forceNew: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
       transports: ['websocket', 'polling']
     });
 
@@ -401,6 +471,16 @@ const VideoCall: React.FC<VideoCallProps> = ({
     newSocket.on('connect', () => {
       console.log(`✅ Socket connected - ID: ${newSocket.id}`);
       setConnectionState('connected');
+      
+      // Join room on connect
+      console.log(`🎯 Joining room: ${roomId}`);
+      newSocket.emit('video:join-room', {
+        roomId,
+        appointmentId,
+        userId,
+        userName,
+        userRole
+      });
     });
 
     newSocket.on('disconnect', (reason) => {
@@ -414,7 +494,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
       setError('Failed to connect to video call server');
     });
 
-    // Participant joined - FIXED: Prevent duplicates and self-connections
+    // Participant joined
     newSocket.on('video:participant-joined', async (data: any) => {
       console.log('👤 Participant joined:', data);
       const participantSocketId = data.socketId;
@@ -431,10 +511,28 @@ const VideoCall: React.FC<VideoCallProps> = ({
       }
       processedParticipants.current.add(participantSocketId);
 
-      // Add to participants list only if not already present
+      // Add to participants list or update existing
       setParticipants(prev => {
-        const exists = prev.find(p => p.userId === data.userId);
-        if (!exists) {
+        const existingUser = prev.find(p => p.userId === data.userId);
+
+        if (existingUser) {
+          console.log(`🔄 User ${data.userId} reconnected with new socket ${participantSocketId}`);
+          
+          // Close old peer connection
+          const oldPc = peerConnections.current.get(existingUser.socketId);
+          if (oldPc) {
+            oldPc.close();
+            peerConnections.current.delete(existingUser.socketId);
+          }
+          
+          // Update with new socket ID
+          return prev.map(p =>
+            p.userId === data.userId
+              ? { ...p, socketId: participantSocketId, remoteStream: undefined }
+              : p
+          );
+        } else {
+          // New participant
           return [...prev, {
             userId: data.userId,
             userName: data.userName || 'Unknown',
@@ -446,12 +544,14 @@ const VideoCall: React.FC<VideoCallProps> = ({
             remoteStream: undefined
           }];
         }
-        return prev;
       });
 
-      // Create peer connection and initiate offer
+      // Create peer connection with delay
       if (!peerConnections.current.has(participantSocketId) && isCallInitiated && localStreamRef.current) {
         console.log(`🤝 Initiating connection with ${participantSocketId}`);
+        
+        // CRITICAL: Add delay to ensure both sides are ready
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         const pc = createPeerConnection(participantSocketId, data.userId, true);
         if (pc && pc.signalingState === 'stable') {
@@ -476,14 +576,19 @@ const VideoCall: React.FC<VideoCallProps> = ({
       }
     });
 
-    // Room participants list - FIXED: Handle only unique participants
+    // Room participants list
     newSocket.on('video:room-participants', async (data: any) => {
       console.log('📋 Room participants list:', data);
       
+      if (roomParticipantsProcessed.current) {
+        console.log('Room participants already processed, skipping');
+        return;
+      }
+      
       if (data.participants && data.participants.length > 0 && isCallInitiated && localStreamRef.current) {
+        roomParticipantsProcessed.current = true;
         const newParticipants: Participant[] = [];
         
-        // Only process new participants
         for (const participant of data.participants) {
           if (participant.socketId !== newSocket.id && !processedParticipants.current.has(participant.socketId)) {
             console.log(`🔄 Processing initial participant: ${participant.socketId}`);
@@ -500,7 +605,9 @@ const VideoCall: React.FC<VideoCallProps> = ({
               remoteStream: undefined
             });
 
-            // Create peer connection
+            // CRITICAL: Add delay before creating peer connection
+            await new Promise(resolve => setTimeout(resolve, 200));
+
             if (!peerConnections.current.has(participant.socketId)) {
               const pc = createPeerConnection(participant.socketId, participant.userId, true);
               if (pc && pc.signalingState === 'stable') {
@@ -526,7 +633,6 @@ const VideoCall: React.FC<VideoCallProps> = ({
           }
         }
 
-        // Update state with all new participants at once
         if (newParticipants.length > 0) {
           setParticipants(prev => {
             const existingUserIds = new Set(prev.map(p => p.userId));
@@ -537,7 +643,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
       }
     });
 
-    // Participant left - FIXED: Proper cleanup
+    // Participant left
     newSocket.on('video:participant-left', (data: any) => {
       console.log('👋 Participant left:', data);
       const socketId = data.socketId;
@@ -596,25 +702,14 @@ const VideoCall: React.FC<VideoCallProps> = ({
       setTimeout(() => onCallEnd(), 1000);
     });
 
-    // Join room immediately when socket connects
-    newSocket.on('connect', () => {
-      console.log(`🎯 Joining room: ${roomId}`);
-      newSocket.emit('video:join-room', {
-        roomId,
-        appointmentId,
-        userId,
-        userName,
-        userRole
-      });
-    });
-
     return () => {
       console.log('🧹 Cleaning up socket connection');
+      newSocket.off();
       newSocket.disconnect();
       setSocket(null);
       socketRef.current = null;
     };
-  }, [userRole, userId, handleOffer, handleAnswer, handleIceCandidate, isCallInitiated, roomId, appointmentId, userName, onCallEnd]);
+  }, [roomId, userRole, userId, userName, appointmentId, onCallEnd, handleOffer, handleAnswer, handleIceCandidate, isCallInitiated, createPeerConnection]);
 
   // Clean up duplicates periodically
   useEffect(() => {
@@ -625,10 +720,42 @@ const VideoCall: React.FC<VideoCallProps> = ({
     return () => clearInterval(interval);
   }, [cleanupDuplicateParticipants]);
 
+  // Debug logging (optional - can be removed in production)
+  useEffect(() => {
+    const debugInterval = setInterval(() => {
+      if (participants.length > 0) {
+        console.log('🔍 Debug State:', {
+          participants: participants.map(p => ({
+            name: p.userName,
+            socketId: p.socketId,
+            hasStream: !!p.remoteStream,
+            streamTracks: p.remoteStream?.getTracks().map(t => t.kind)
+          })),
+          peerConnections: Array.from(peerConnections.current.entries()).map(([id, pc]) => ({
+            socketId: id,
+            state: pc?.connectionState,
+            iceState: pc?.iceConnectionState
+          })),
+          videoElements: Array.from(remoteVideoRefs.current.entries()).map(([id, el]) => ({
+            socketId: id,
+            hasStream: !!el.srcObject,
+            playing: !el.paused
+          }))
+        });
+      }
+    }, 10000); // Log every 10 seconds
+
+    return () => clearInterval(debugInterval);
+  }, [participants]);
+
   // Start Call
   const startCall = useCallback(async () => {
     try {
       if (!roomId) throw new Error('Room ID not available');
+      
+      // Reset tracking refs
+      processedParticipants.current.clear();
+      roomParticipantsProcessed.current = false;
 
       console.log('🚀 Starting call for room:', roomId);
       await initializeMedia();
@@ -774,17 +901,20 @@ const VideoCall: React.FC<VideoCallProps> = ({
         });
         screenStreamRef.current = screenStream;
         
-        peerConnections.current.forEach(pc => {
-          if (!pc) return;
+        // Replace video track for all peer connections
+        const screenTrack = screenStream.getVideoTracks()[0];
+        
+        for (const [socketId, pc] of peerConnections.current.entries()) {
+          if (!pc) continue;
           
-          const videoTrack = screenStream.getVideoTracks()[0];
           const sender = pc.getSenders().find(s => s.track?.kind === 'video');
-          if (sender && videoTrack) {
-            sender.replaceTrack(videoTrack);
+          if (sender && screenTrack) {
+            await sender.replaceTrack(screenTrack);
           }
-        });
+        }
 
-        screenStream.getVideoTracks()[0].onended = () => {
+        // Handle when user stops sharing via browser UI
+        screenTrack.onended = () => {
           stopScreenShare();
         };
 
@@ -801,24 +931,24 @@ const VideoCall: React.FC<VideoCallProps> = ({
   };
 
   // Stop Screen Share
-  const stopScreenShare = () => {
+  const stopScreenShare = async () => {
     if (screenStreamRef.current) {
       // Stop all screen tracks
       screenStreamRef.current.getTracks().forEach(track => track.stop());
       screenStreamRef.current = null;
 
-      // Replace video track in each peer connection
+      // Replace with camera track for all peer connections
       if (localStreamRef.current) {
         const videoTrack = localStreamRef.current.getVideoTracks()[0];
 
-        peerConnections.current.forEach(pc => {
-          if (!pc) return;
+        for (const [socketId, pc] of peerConnections.current.entries()) {
+          if (!pc) continue;
 
           const sender = pc.getSenders().find(s => s.track?.kind === 'video');
           if (sender && videoTrack) {
-            sender.replaceTrack(videoTrack);
+            await sender.replaceTrack(videoTrack);
           }
-        });
+        }
       }
 
       setIsSharingScreen(false);
@@ -848,7 +978,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
       localStreamRef.current?.getTracks().forEach(track => track.stop());
       screenStreamRef.current?.getTracks().forEach(track => track.stop());
     };
-  }, []);
+  }, [participants]);
 
   // Calculate actual participant count (excluding self)
   const actualParticipantCount = participants.filter(p => p.userId !== userId).length;
@@ -964,7 +1094,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
             </div>
           ) : (
             participants
-              .filter(participant => participant.userId !== userId) // Exclude self
+              .filter(participant => participant.userId !== userId)
               .map((participant) => (
               <div key={`${participant.userId}-${participant.socketId}`} className="relative bg-black rounded-lg overflow-hidden">
                 <video
@@ -980,6 +1110,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
                   }}
                   autoPlay
                   playsInline
+                  muted={participant.userId===userId}
                   className="w-full h-full object-cover"
                   style={{ height: actualParticipantCount === 1 ? '70vh' : '35vh' }}
                 />
