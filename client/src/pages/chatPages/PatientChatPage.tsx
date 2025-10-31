@@ -7,6 +7,7 @@ import {
   findOrCreateChatRoom,
   clearSearchResults
 } from '@/features/chat/chatSlice';
+import { useDebounce } from "use-debounce";
 
 const PatientChatPage: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -19,6 +20,22 @@ const PatientChatPage: React.FC = () => {
 
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
+
+//use Debouncing 
+  useEffect(() => {
+  if (debouncedSearchQuery.trim()) {
+        console.log("🔍 Debounced value triggered:", debouncedSearchQuery);
+
+    dispatch(searchUsers({
+      query: debouncedSearchQuery,
+      type: "doctors",
+     
+    }));
+  } else {
+    dispatch(clearSearchResults());
+  }
+}, [debouncedSearchQuery]);
 
   // Initialize chat socket on mount
   useEffect(() => {
@@ -32,16 +49,6 @@ const PatientChatPage: React.FC = () => {
       };
     }
   }, [patient?.id]);
-
-  // Handle search input change
-  const handleSearchDoctor = async (query: string) => {
-    if (query.trim()) {
-      console.log('🔍 Searching for doctors:', query);
-      await dispatch(searchUsers({ query, type: 'doctors', role: 'patient' }));
-    } else {
-      dispatch(clearSearchResults());
-    }
-  };
 
   // Handle doctor selection
   const handleSelectDoctor = async (doctorId: string) => {
@@ -57,7 +64,7 @@ const PatientChatPage: React.FC = () => {
         findOrCreateChatRoom({
           doctorId,
           patientId: patient.id,
-          role: 'patient',
+      
         })
       );
       
@@ -104,7 +111,7 @@ const PatientChatPage: React.FC = () => {
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
-              handleSearchDoctor(e.target.value);
+           
             }}
             placeholder="Enter doctor's name or specialization..."
             className="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"

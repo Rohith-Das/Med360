@@ -48,6 +48,7 @@
     "tailwind-merge": "^3.3.1",
     "tailwind-variants": "^1.0.0",
     "tailwindcss-animate": "^1.0.7",
+    "use-debounce": "^10.0.6",
     "webrtc-adapter": "^9.0.3"
   },
   "devDependencies": {

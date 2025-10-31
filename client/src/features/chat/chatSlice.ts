@@ -1,10 +1,9 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import doctorAxiosInstance from "@/api/doctorAxiosInstance";
 import axiosInstance from "@/api/axiosInstance";
+import { RootState } from "@/app/store";
 
-// ======================
-// Types
-// ======================
+
 export interface ChatMessage {
   id: string;
   chatRoomId: string;
@@ -48,13 +47,22 @@ export interface ChatUser {
   specialization?: string;
 }
 
-// ======================
-// State
-// ======================
+interface TypingStatus {
+  roomId: string;
+  userId: string;
+  userName: string;
+  userRole: 'doctor' | 'patient';
+  isTyping: boolean;
+}
+
 interface ChatState {
   chatRooms: ChatRoom[];
   messages: Record<string, ChatMessage[]>;
   currentRoomId: string | null;
+  unreadCounts:Record<string,number>;
+  totalUnreadCount:number;
+  typingUsers:Record<string,TypingStatus[]>;
+  onlineUsers:Record<string,boolean>;
   loading: boolean;
   error: string | null;
   searchResults: ChatUser[];
@@ -65,29 +73,59 @@ const initialState: ChatState = {
   chatRooms: [],
   messages: {},
   currentRoomId: null,
+  unreadCounts: {},
+  totalUnreadCount: 0,
+  typingUsers: {},
+  onlineUsers: {},
   loading: false,
   error: null,
   searchResults: [],
   searchLoading: false,
 };
+interface ChatConfig {
+  api: any; 
+  role: 'doctor' | 'patient';
+  userId?: string;
+  user?: any;
+}
+const getChatConfig = (state: RootState): ChatConfig | null => {
+  if (state.doctorAuth.isAuthenticated && state.doctorAuth.doctor) {
+    return {
+      api: doctorAxiosInstance,
+      role: 'doctor',
+      userId: state.doctorAuth.doctor.id,
+      user: state.doctorAuth.doctor
+    };
+  }
+  if (state.auth.patient && state.auth.accessToken) {
+    return {
+      api: axiosInstance,
+      role: 'patient',
+      userId: state.auth.patient.id,
+      user: state.auth.patient
+    };
+  }
+  return null;
+};
 
-// ======================
-// Async Thunks
-// ======================
-
-// 🔹 Find or create chat room
+// Updated thunks
 export const findOrCreateChatRoom = createAsyncThunk(
   "chat/findOrCreateChatRoom",
-  async (
-    params: { doctorId: string; patientId: string; role: "doctor" | "patient" },
-    { rejectWithValue }
-  ) => {
+  async (params: { doctorId: string; patientId: string }, { rejectWithValue, getState }) => {
     try {
-      const api = params.role === "doctor" ? doctorAxiosInstance : axiosInstance;
-      const response = await api.post("/chat/rooms/find-or-create", {
+      const state = getState() as RootState;
+      const config = getChatConfig(state);
+      
+      if (!config) {
+        throw new Error('User not authenticated');
+      }
+      
+      const response = await config.api.post('/chat/rooms/find-or-create', {
         doctorId: params.doctorId,
         patientId: params.patientId,
       });
+      
+      console.log(`✅ ${config.role} found/created chat room`);
       return response.data.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || "Failed to create or find chat room");
@@ -95,40 +133,29 @@ export const findOrCreateChatRoom = createAsyncThunk(
   }
 );
 
-// 🔹 Search users
 export const searchUsers = createAsyncThunk(
   "chat/searchUsers",
-  async (
-    params: { query: string; type: "doctors" | "patients"; role: "doctor" | "patient" },
-    { rejectWithValue }
-  ) => {
+  async (params: { query: string; type: "doctors" | "patients" }, { rejectWithValue, getState }) => {
     try {
-      console.log("🔍 searchUsers role:", params.role);
-      console.log("🔍 search query:", params.query);
-      console.log("🔍 search type:", params.type);
-      // choose axios instance based on role
-      const api = params.role === "doctor" ? doctorAxiosInstance : axiosInstance;
-
-      // dynamic endpoint for patient or doctor
-      const endpoint =
-        params.role === "patient"
-          ? "/chat/search/patient"
-          : "/chat/search/doctor";
-
-      // make GET request
-      const response = await api.get(endpoint, {
+      const state = getState() as RootState;
+      const config = getChatConfig(state);
+      
+      if (!config) {
+        throw new Error('User not authenticated');
+      }
+      
+      console.log(`🔍 ${config.role} searching for ${params.type}: "${params.query}"`);
+      
+      const response = await config.api.get('/chat/search', {
         params: { q: params.query, type: params.type },
       });
-
+      
       return response.data.data;
     } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to search users"
-      );
+      return rejectWithValue(error.response?.data?.message || "Failed to search users");
     }
   }
 );
-
 
 // Slice
 
