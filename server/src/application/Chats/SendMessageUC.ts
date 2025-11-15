@@ -20,14 +20,14 @@ export class SendMessageUC {
   ) {}
 
   async execute(data: SendMessageDTO): Promise<ChatMessage> {
-    // Verify chat room exists
+    // 1. Validate chat room
     const chatRoom = await this.chatRepo.findChatRoomById(data.chatRoomId);
     if (!chatRoom) {
       throw new Error('Chat room not found');
     }
 
-    // Verify sender is part of the chat room
-    const isAuthorized = 
+    // 2. Authorization
+    const isAuthorized =
       (data.senderType === 'doctor' && chatRoom.doctorId === data.senderId) ||
       (data.senderType === 'patient' && chatRoom.patientId === data.senderId);
 
@@ -35,22 +35,23 @@ export class SendMessageUC {
       throw new Error('Unauthorized to send message in this chat room');
     }
 
-    // Create message
+    // 3. Create message with correct defaults
     const message = await this.chatRepo.createMessage({
       chatRoomId: data.chatRoomId,
       senderId: data.senderId,
       senderType: data.senderType,
-      messageType: data.messageType || 'text',
       message: data.message,
+      messageType: data.messageType ?? 'text',
       fileUrl: data.fileUrl,
       fileName: data.fileName,
       fileSize: data.fileSize,
       isRead: false,
-      readBy: {},
-      status: 'sent'
+      readBy: undefined, // ← FIX: not empty object
+      status: 'sent',    // ← OK if enum includes 'sent'
+      timestamp: new Date(), // ← ADD: for sorting & display
     });
 
-    console.log(`✅ Message created: ${message.id}`);
+    console.log(`Message sent: ${message.id} by ${data.senderType} ${data.senderId}`);
     return message;
   }
 }

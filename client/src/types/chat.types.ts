@@ -1,29 +1,12 @@
-
-
-export interface ChatRoom {
-  id: string;
-  doctorId: string;
-  patientId: string;
-  doctorName?: string;
-  patientName?: string;
-  doctorImage?: string;
-  patientImage?: string;
-  lastMessage?: string;
-  lastMessageTime?: Date;
-  unreadCount: number;
-  isActive: boolean;
-  expiresAt: Date;
-  lastAppointmentDate: Date;
-  isOnline?: boolean;
-}
-
+// src/types/chat.ts
 export interface ChatMessage {
   id: string;
   chatRoomId: string;
   senderId: string;
+  senderName?: string;
   senderType: 'doctor' | 'patient';
-  message: string;
   messageType: 'text' | 'image' | 'file';
+  message: string;
   fileUrl?: string;
   fileName?: string;
   fileSize?: number;
@@ -32,17 +15,21 @@ export interface ChatMessage {
     doctor?: Date;
     patient?: Date;
   };
-  createdAt: Date;
-  updatedAt: Date;
+  status: 'sent' | 'delivered' | 'seen' | 'sending' | 'failed';
+  timestamp?: Date;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface TypingStatus {
+export interface UserStatus {
+  userId: string;
+  isOnline: boolean;
+  lastSeen?: Date;
+}
+
+export interface TypingData {
+  roomId: string;
   userId: string;
   userName: string;
   isTyping: boolean;
-}
-
-export interface OnlineStatus {
-  userId: string;
-  isOnline: boolean;
 }

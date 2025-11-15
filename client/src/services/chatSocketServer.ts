@@ -1,27 +1,9 @@
-// client/src/features/chat/chatSocket.ts
+
 import { io, Socket } from 'socket.io-client';
 import { store } from '@/app/store';
 import { toast } from 'react-toastify';
+import { ChatMessage,TypingData,UserStatus } from '@/types/chat.types';
 
-interface ChatMessage {
-  roomId: string;
-  senderId: string;
-  senderName: string;
-  senderType: 'doctor' | 'patient';
-  message: string;
-  messageType?: 'text' | 'image' | 'file';
-  fileUrl?: string;
-  fileName?: string;
-  fileSize?: number;
-  timestamp: Date;
-  status: string;
-}
-
-interface UserStatus {
-  userId: string;
-  isOnline: boolean;
-  lastSeen: Date;
-}
 
 class ChatSocketService {
   private socket: Socket | null = null;
@@ -155,7 +137,7 @@ class ChatSocketService {
   }
 
   sendMessage(data: {
-    roomId: string;
+    roomId?: string;
     message: string;
     messageType?: 'text' | 'image' | 'file';
     fileUrl?: string;
@@ -196,23 +178,36 @@ class ChatSocketService {
   }
 
   // Event handler registration
-  onNewMessage(handler: (message: ChatMessage) => void): () => void {
-    const id = Math.random().toString(36);
-    this.messageHandlers.set(id, handler);
-    return () => this.messageHandlers.delete(id);
-  }
+offNewMessage(handlerId: string) {
+  this.messageHandlers.delete(handlerId);
+}
 
-  onUserStatus(handler: (status: UserStatus) => void): () => void {
-    const id = Math.random().toString(36);
-    this.statusHandlers.set(id, handler);
-    return () => this.statusHandlers.delete(id);
-  }
+offUserStatus(handlerId: string) {
+  this.statusHandlers.delete(handlerId);
+}
 
-  onTyping(handler: (data: any) => void): () => void {
-    const id = Math.random().toString(36);
-    this.typingHandlers.set(id, handler);
-    return () => this.typingHandlers.delete(id);
-  }
+offTyping(handlerId: string) {
+  this.typingHandlers.delete(handlerId);
+}
+
+// Update onXXX to return handlerId
+onNewMessage(handler: (message: ChatMessage) => void): string {
+  const id = Math.random().toString(36);
+  this.messageHandlers.set(id, handler);
+  return id;
+}
+
+onUserStatus(handler: (status: UserStatus) => void): string {
+  const id = Math.random().toString(36);
+  this.statusHandlers.set(id, handler);
+  return id;
+}
+
+onTyping(handler: (data: any) => void): string {
+  const id = Math.random().toString(36);
+  this.typingHandlers.set(id, handler);
+  return id;
+}
 
   disconnect() {
     if (this.socket) {

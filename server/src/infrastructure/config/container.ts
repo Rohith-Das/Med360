@@ -90,6 +90,10 @@ import { IChatRepository } from "../../domain/repositories/ChatRepository";
 import { MongoChatRepository } from "../database/repositores/MongoChatRepository";
 import { FindOrCreateChatRoomUC } from "../../application/Chats/FindOrCreateChatRoomUC";
 import { SearchUsersUC } from "../../application/Chats/SearchUsersUC";
+import { GetChatRoomMessagesUC } from "../../application/Chats/GetChatRoomMessagesUC";
+import { GetUnreadCountUC } from "../../application/Chats/GetUnreadCountUC";
+import { GetUserChatRoomsUC } from "../../application/Chats/GetUserChatRoomsUC";
+import { SendMessageUC } from "../../application/Chats/SendMessageUC";
 
 // Database
 container.registerSingleton(mongoDBClient);
@@ -190,4 +194,8 @@ container.register<IChatRepository>("IChatRepository", {
 });
 container.registerSingleton(FindOrCreateChatRoomUC);
 container.registerSingleton(SearchUsersUC);
+container.registerSingleton(GetChatRoomMessagesUC);
+container.registerSingleton(GetUnreadCountUC);
+container.registerSingleton(GetUserChatRoomsUC);
+container.registerSingleton(SendMessageUC);
 export {container}

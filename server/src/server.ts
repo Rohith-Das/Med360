@@ -18,7 +18,7 @@ import PaymentRouter from "./presentation/routes/PaymentRoutes";
 import VideoCallRouter from "./presentation/routes/VideoCallRoutes";
 import { initializeSocketServer } from "./infrastructure/socket/socketServer";
 import { ChatSocketServer } from "./infrastructure/socket/chatSocketServer";
-import ChatRouter from "./presentation/routes/chatRoutes";
+import { ChatRouter } from "./presentation/routes/chatRoutes";
 
 let chatSocketServerInstance: ChatSocketServer;
 

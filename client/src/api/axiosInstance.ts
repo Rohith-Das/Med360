@@ -10,13 +10,19 @@ axiosInstance.interceptors.request.use((config) => {
   const state = store.getState();
   console.log('Full auth state:', state.auth);
   let token = state.auth.accessToken;
-  console.log('Access Token from Redux:', token); 
+  console.log('📤 Patient Axios Request');
+  console.log('Token preview:', token?.substring(0, 50));
+  console.log('URL:', config.url);
+
   if (!token) {
     token = localStorage.getItem("accessToken");
+       console.log('⚠️ Token from localStorage');
   }
   
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
+  }else {
+    console.warn('⚠️ No token available for request');
   }
   
   return config;

@@ -1,11 +1,11 @@
 import mongoose from "mongoose";
 export type MessageType = 'text' | 'image' | 'file';
-export type MessageStatus = 'sent' | 'delivered' | 'read';
+export type MessageStatus = 'sent' | 'delivered' | 'seen' | 'sending' | 'failed'; // ← 'read' → 'seen'
 
 export interface ChatMessage {
   id?: string;
   chatRoomId: string | mongoose.Types.ObjectId;
-  senderId: string | mongoose.Types.ObjectId; 
+  senderId: string | mongoose.Types.ObjectId;
   senderType: 'doctor' | 'patient';
   message: string;
   messageType: MessageType;
@@ -19,5 +19,6 @@ export interface ChatMessage {
   };
   createdAt?: Date;
   updatedAt?: Date;
-    status?: MessageStatus;
+  status?: MessageStatus;
+  timestamp: Date,
 }

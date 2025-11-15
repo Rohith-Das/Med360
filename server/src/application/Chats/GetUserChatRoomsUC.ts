@@ -1,3 +1,4 @@
+// src/application/Chats/GetUserChatRoomsUC.ts
 import { injectable, inject } from 'tsyringe';
 import { IChatRepository } from '../../domain/repositories/ChatRepository';
 import { ChatRoom } from '../../domain/entities/ChatRoom.entity';
@@ -13,23 +14,21 @@ export class GetUserChatRoomsUC {
     userType: 'doctor' | 'patient',
     limit = 50,
     offset = 0
-  ): Promise<{ chatRooms: ChatRoom[]; unreadCounts: Map<string, number> }> {
-    let chatRooms: ChatRoom[];
+  ): Promise<{ chatRooms: ChatRoom[]; unreadCounts: Record<string, number> }> {
+    // 1. fetch rooms (already populated in repo)
+    const chatRooms =
+      userType === 'doctor'
+        ? await this.chatRepo.getDoctorChatRooms(userId, limit, offset)
+        : await this.chatRepo.getPatientChatRooms(userId, limit, offset);
 
-    if (userType === 'doctor') {
-      chatRooms = await this.chatRepo.getDoctorChatRooms(userId, limit, offset);
-    } else {
-      chatRooms = await this.chatRepo.getPatientChatRooms(userId, limit, offset);
-    }
-
-    // Get unread count for each room
-    const unreadCounts = new Map<string, number>();
+    // 2. unread count per room
+    const unreadCounts: Record<string, number> = {};
     for (const room of chatRooms) {
       const count = await this.chatRepo.getUnreadCount(room.id!, userType);
-      unreadCounts.set(room.id!, count);
+      unreadCounts[room.id!] = count;
     }
 
-    console.log(`✅ Retrieved ${chatRooms.length} chat rooms for ${userType} ${userId}`);
+    console.log(`Retrieved ${chatRooms.length} chat rooms for ${userType} ${userId}`);
     return { chatRooms, unreadCounts };
   }
 }

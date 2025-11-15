@@ -87,6 +87,7 @@ export class MongoChatRepository implements IChatRepository {
   async getPatientChatRooms(patientId: string, limit = 50, offset = 0): Promise<ChatRoom[]> {
     const rooms = await ChatRoomModel.find({ patientId })
       .populate('doctorId', 'name specialization profilePicture')
+      .populate('patientId', 'name profilePicture')
       .sort({ 'lastMessage.timestamp': -1 })
       .limit(limit)
       .skip(offset)
@@ -98,23 +99,30 @@ export class MongoChatRepository implements IChatRepository {
     }));
   }
 
-  async createMessage(data: Omit<ChatMessage, 'id'>): Promise<ChatMessage> {
-    const message = new ChatMessageModel(data);
-    const saved = await message.save();
-    
-    await ChatRoomModel.findByIdAndUpdate(data.chatRoomId, {
-      lastMessage: {
-        text: data.message,
-        timestamp: new Date(),
-        senderType: data.senderType
-      }
-    });
-    
-    return {
-      id: saved._id.toString(),
-      ...saved.toObject()
-    };
-  }
+async createMessage(data: Omit<ChatMessage, 'id'>): Promise<ChatMessage> {
+  const message = new ChatMessageModel({
+    ...data,
+    timestamp: data.timestamp ?? new Date(), // ← ensure always set
+    readBy: data.readBy ?? undefined,
+    status: data.status ?? 'sent',
+  });
+
+  const saved = await message.save();
+
+  // Update chat room's lastMessage
+  await ChatRoomModel.findByIdAndUpdate(data.chatRoomId, {
+    lastMessage: {
+      text: data.message,
+      timestamp: data.timestamp ?? new Date(),
+      senderType: data.senderType,
+    },
+  });
+
+  return {
+    id: saved._id.toString(),
+    ...saved.toObject(),
+  };
+}
 
   async findMessageById(messageId: string): Promise<ChatMessage | null> {
     const message = await ChatMessageModel.findById(messageId).lean();
@@ -147,17 +155,32 @@ export class MongoChatRepository implements IChatRepository {
   }
 
   async getChatRoomMessages(roomId: string, limit = 50, offset = 0): Promise<ChatMessage[]> {
-    const messages = await ChatMessageModel.find({ chatRoomId: roomId })
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .skip(offset)
-      .lean();
-    
-    return messages.map(msg => ({
-      id: msg._id.toString(),
-      ...msg
-    })).reverse();
-  }
+  const messages = await ChatMessageModel.find({ chatRoomId: roomId })
+    .populate('sender', 'name')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(offset)
+    .lean();
+
+  return messages.map((msg: any) => ({
+    id: msg._id.toString(),
+    chatRoomId: msg.chatRoomId.toString(),
+    senderId: msg.sender?._id?.toString() ?? msg.senderId.toString(), // ← toString()
+    senderName: msg.sender?.name ?? 'Unknown',
+    senderType: msg.senderType,
+    message: msg.message,
+    messageType: msg.messageType,
+    fileUrl: msg.fileUrl,
+    fileName: msg.fileName,
+    fileSize: msg.fileSize,
+    isRead: msg.isRead,
+    readBy: msg.readBy,
+    status: msg.status,
+    timestamp: msg.timestamp,
+    createdAt: msg.createdAt,
+    updatedAt: msg.updatedAt,
+  })).reverse();
+}
 
   async getUnreadMessages(roomId: string, userType: 'doctor' | 'patient'): Promise<ChatMessage[]> {
     const query: any = {
