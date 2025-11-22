@@ -78,7 +78,7 @@ const VideoCall: React.FC<VideoCallProps> = ({
 
   const getAuthToken = () => {
     const state: RootState = store.getState();
-    return userRole === 'doctor' ? state.doctorAuth.doctorAccessToken : state.auth.accessToken;
+    return userRole === 'doctor' ? state.doctorAuth.doctorAuth.doctorAccessToken : state.patientAuth.auth.accessToken;
   };
 
   const getAxiosInstance = () => {

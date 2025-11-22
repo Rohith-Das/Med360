@@ -45,8 +45,8 @@ const DoctorProfile=()=>{
 
     const dispatch=useAppDispatch();
     const navigate=useNavigate();
-    const {profile,loading,error}=useAppSelector((state)=>state.doctorProfile)
-    const {doctor}=useAppSelector((state)=>state.doctorAuth)
+    const {profile,loading,error}=useAppSelector((state)=>state.doctorAuth.doctorProfile)
+    const {doctor}=useAppSelector((state)=>state.doctorAuth.doctorAuth)
 
     const [formData,setFormData]=useState<DoctorFormData>({
         email:"",

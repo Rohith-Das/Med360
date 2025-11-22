@@ -1,35 +1,29 @@
-import { injectable,inject } from "tsyringe";   
+// server/src/application/Chats/FindOrCreateChatRoomUC.ts
+import { injectable, inject } from "tsyringe";   
 import { IChatRepository } from "../../domain/repositories/ChatRepository";
-import { ChatRoom} from "../../domain/entities/ChatRoom.entity";
-import { IAppointmentRepository } from "../../domain/repositories/AppointmentRepository";
+import { ChatRoom } from "../../domain/entities/ChatRoom.entity";
 
 @injectable()
-export class FindOrCreateChatRoomUC{
-    constructor(@inject('IChatRepository')private chatRepo:IChatRepository,
-    @inject('IAppointmentRepository')private appointmentRepo:IAppointmentRepository)
-    {}
+export class FindOrCreateChatRoomUC {
+  constructor(
+    @inject('IChatRepository') private chatRepo: IChatRepository
+  ) {}
 
-    async execute(
-        doctorId:string,
-        patientId:string
-    ):Promise<ChatRoom>{
-        let chatRoom=await this.chatRepo.findChatRoom(doctorId,patientId);
-        if(chatRoom){
-              console.log(`✅ Found existing chat room in uc: ${chatRoom.id}`);
+  async execute(doctorId: string, patientId: string): Promise<ChatRoom> {
+
+    // 1. Check if chat room already exists
+    let chatRoom = await this.chatRepo.findChatRoom(doctorId, patientId);
+    
+    if (chatRoom) {
+      console.log(`✅ Found existing chat room: ${chatRoom.id}`);
       return chatRoom;
-        }
-        const appointments=await this.appointmentRepo.findAppointmentsByDoctorAndPatient(doctorId,patientId);
-         if (!appointments || appointments.length === 0) {
-      throw new Error('No appointment found between doctor and patient');
     }
-     const lastAppointment = appointments.sort((a, b) => 
-      new Date(b.date).getTime() - new Date(a.date).getTime()
-    )[0];
 
+    // 2. Create new chat room (NO appointment check)
     chatRoom = await this.chatRepo.createChatRoom({
       doctorId,
       patientId,
-      lastAppointmentDate: lastAppointment.date,
+      lastAppointmentDate: null, // optional now
       lastMessage: {
         text: '',
         timestamp: new Date(),
@@ -37,7 +31,8 @@ export class FindOrCreateChatRoomUC{
       }
     });
 
-    console.log(`✅ Created new chat room in uc: ${chatRoom.id}`);
+    console.log(`[NEW CHAT ROOM CREATED] Room ID: ${chatRoom.id} | Doctor: ${doctorId} | Patient: ${patientId}`);
+
     return chatRoom;
   }
 }

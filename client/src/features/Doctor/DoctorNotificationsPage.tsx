@@ -26,7 +26,7 @@ const DoctorNotificationsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const { notifications, loading, error, unreadCount, incomingCallsData } = useAppSelector((state) => state.notifications);
   const { isConnected } = useSocket();
-  const { doctor } = useAppSelector((state) => state.doctorAuth);
+  const { doctor } = useAppSelector((state) => state.doctorAuth.doctorAuth);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [isJoiningCall, setIsJoiningCall] = useState(false); // Changed from showVideoCall

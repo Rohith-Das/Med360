@@ -26,8 +26,8 @@ const ProfilePage = () => {
 
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { data: profile, loading, error } = useAppSelector((state) => state.profile);
-  const { patient } = useAppSelector((state) => state.auth);
+  const { data: profile, loading, error } = useAppSelector((state) => state.patientAuth.profile);
+  const { patient } = useAppSelector((state) => state.patientAuth.auth);
   
   const [isEditing, setIsEditing] = useState(false);
  const [formData, setFormData] = useState<ProfileFormData>({

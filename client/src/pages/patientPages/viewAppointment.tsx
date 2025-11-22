@@ -47,7 +47,7 @@ const ViewAppointment: React.FC = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const { isConnected } = useSocket();
-  const patient = useAppSelector((state) => state.auth.patient);
+  const patient = useAppSelector((state) => state.patientAuth.auth.patient);
   const { incomingCallsData } = useAppSelector((state) => state.notifications);
 
   useEffect(() => {

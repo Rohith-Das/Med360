@@ -18,8 +18,8 @@ class SocketService {
 
     const apiUrl = 'http://localhost:5001';
     const token = role === 'doctor' 
-      ? store.getState().doctorAuth.doctorAccessToken 
-      : store.getState().auth.accessToken;
+      ? store.getState().doctorAuth.doctorAuth.doctorAccessToken 
+      : store.getState().patientAuth.auth.accessToken;
 
     if (!token) {
       console.error('No authentication token available');

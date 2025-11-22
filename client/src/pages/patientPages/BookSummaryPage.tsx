@@ -44,7 +44,7 @@ interface BookingData {
 const BookSummaryPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const patient = useSelector((state: RootState) => state.auth.patient);
+  const patient = useSelector((state: RootState) => state.patientAuth.auth.patient);
 
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [loading, setLoading] = useState(false);

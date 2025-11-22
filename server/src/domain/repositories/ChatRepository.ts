@@ -9,6 +9,7 @@ export interface IChatRepository {
   findChatRoomById(roomId: string): Promise<ChatRoom | null>;
   updateChatRoom(roomId: string, updates: Partial<ChatRoom>): Promise<ChatRoom | null>;
   deleteChatRoom(roomId: string): Promise<boolean>;
+  
   getDoctorChatRooms(doctorId: string, limit?: number, offset?: number): Promise<ChatRoom[]>;
   getPatientChatRooms(patientId: string, limit?: number, offset?: number): Promise<ChatRoom[]>;
   

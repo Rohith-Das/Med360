@@ -23,29 +23,57 @@ import profileReducer from '../features/profile/profileSlice';
 import specializationReducer from '../features/specialization/specializationSlice';
 import DoctorProfileReducer from '../features/profile/DoctorSlice'
 
-const rootReducer = combineReducers({
-  auth: authReducer,
-  adminAuth: adminAuthReducer,
-  profile: profileReducer,
-  doctorProfile: DoctorProfileReducer,
-  specialization: specializationReducer,
+const patientPersistConfig={
+  key:'patientAuth',
+  storage,
+  whitelist: ['auth', 'profile'],
+}
+const doctorPersistConfig = {
+  key: 'doctorAuth', 
+  storage,
+  whitelist: ['doctorAuth', 'doctorProfile'], 
+};
+const adminPersistConfig = {
+  key: 'adminAuth', 
+  storage,
+  whitelist: ['adminAuth'], 
+};
+
+const persistedPatientAuthReducer=persistReducer(patientPersistConfig,combineReducers({
+  auth:authReducer,
+  profile:profileReducer
+}))
+const persistedDoctorAuthReducer = persistReducer(doctorPersistConfig, combineReducers({
   doctorAuth: doctorAuthReducer,
+  doctorProfile: DoctorProfileReducer,
+}));
+
+const persistedAdminAuthReducer = persistReducer(adminPersistConfig, combineReducers({
+  adminAuth: adminAuthReducer,
+}));
+
+const rootReducer=combineReducers({
+  patientAuth:persistedPatientAuthReducer,
+  doctorAuth:persistedDoctorAuthReducer,
+  adminAuth:persistedAdminAuthReducer,
+
+  specialization: specializationReducer,
   doctors: doctorsReducer,
   adminDoctors: adminDoctorsReducer,
   notifications: notificationReducer,
   chat: chatReducer,
-});
-
-const persistConfig = {
-  key: 'root',
+  
+})
+const rootPersistConfig = {
+  key: 'appRoot', 
   storage,
-  whitelist: ['auth', 'adminAuth', 'profile', 'doctorAuth', 'doctorProfile','chat']
+  whitelist: ['specialization', 'doctors', 'adminDoctors', 'notifications', 'chat'], // Only global, non-auth slices
+  // blacklist: ['patientAuth', 'doctorAuth', 'adminAuth'], // The nested reducers handle persistence for auth
 };
-
-const persistedReducer = persistReducer(persistConfig, rootReducer);
+const persistedRootReducer = persistReducer(rootPersistConfig, rootReducer);
 
 export const store = configureStore({
-  reducer: persistedReducer,
+  reducer: persistedRootReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {

@@ -3,7 +3,7 @@ import doctorAxiosInstance from "@/api/doctorAxiosInstance";
 import axiosInstance from "@/api/axiosInstance";
 import { RootState } from "@/app/store";
 import { ChatMessage,UserStatus,TypingData } from "@/types/chat.types";
-/* ──────────────────────── Interfaces ──────────────────────── */
+
 export interface ChatUser {
   id: string;
   name: string;
@@ -75,20 +75,20 @@ interface ChatConfig {
   user?: any;
 }
 const getChatConfig = (state: RootState): ChatConfig => {
-  if (state.doctorAuth.isAuthenticated && state.doctorAuth.doctor) {
+  if (state.doctorAuth.doctorAuth.doctor && state.doctorAuth.doctorAuth.doctorAccessToken) {
     return {
       api: doctorAxiosInstance,
       role: "doctor",
-      userId: state.doctorAuth.doctor.id,
-      user: state.doctorAuth.doctor,
+      userId: state.doctorAuth.doctorAuth.doctor.id,
+      user: state.doctorAuth.doctorAuth.doctor,
     };
   }
-  if (state.auth.patient && state.auth.accessToken) {
+  if (state.patientAuth.auth.patient && state.patientAuth.auth.accessToken) {
     return {
       api: axiosInstance,
       role: "patient",
-      userId: state.auth.patient.id,
-      user: state.auth.patient,
+      userId: state.patientAuth.auth.patient.id,
+      user: state.patientAuth.auth.patient,
     };
   }
   throw new Error("User not authenticated");
@@ -399,15 +399,21 @@ const chatSlice = createSlice({
         s.loading = true;
         s.error = null;
       })
-      .addCase(fetchChatRooms.fulfilled, (s, a) => {
-        s.loading = false;
-        const { chatRooms, unreadCounts } = a.payload; // <-- backend returns both
-        s.chatRooms = chatRooms;
-        s.unreadCounts = unreadCounts;
-      s.totalUnreadCount = (Object.values(unreadCounts) as number[]).reduce(
-  (acc, cur) => acc + cur,
-  0
-);
+ .addCase(fetchChatRooms.fulfilled, (s, a) => {
+  s.loading = false;
+  
+  console.log('📥 [SLICE] Received chat rooms:', a.payload);
+  
+  // ✅ Handle both response formats
+  const chatRooms = a.payload.chatRooms || a.payload.data?.chatRooms || [];
+  const unreadCounts = a.payload.unreadCounts || a.payload.data?.unreadCounts || {};
+  
+  s.chatRooms = chatRooms;
+  s.unreadCounts = unreadCounts;
+  s.totalUnreadCount = Object.values(unreadCounts).reduce(
+    (acc: number, cur) => acc + (cur as number), 
+    0
+  );
       })
       .addCase(fetchChatRooms.rejected, (s, a) => {
         s.loading = false;

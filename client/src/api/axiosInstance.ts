@@ -8,8 +8,8 @@ const axiosInstance = axios.create({
 
 axiosInstance.interceptors.request.use((config) => {
   const state = store.getState();
-  console.log('Full auth state:', state.auth);
-  let token = state.auth.accessToken;
+
+  let token = state.patientAuth.auth.accessToken;
   console.log('📤 Patient Axios Request');
   console.log('Token preview:', token?.substring(0, 50));
   console.log('URL:', config.url);
@@ -44,7 +44,7 @@ axiosInstance.interceptors.response.use(
         
         const { setAccessToken } = await import('../features/auth/authSlice');
         store.dispatch(setAccessToken(newAccessToken));
-        localStorage.setItem("accessToken", newAccessToken);
+  
         originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
         return axiosInstance(originalRequest);
       } catch (err) {

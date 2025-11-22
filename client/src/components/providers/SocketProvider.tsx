@@ -24,8 +24,9 @@ interface SocketProviderProps {
 }
 
 export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
-  const { doctorAccessToken, doctor } = useAppSelector((state) => state.doctorAuth);
-  const { accessToken, patient } = useAppSelector((state) => state.auth)
+  const { doctorAccessToken, doctor } = useAppSelector((state) => state.doctorAuth.doctorAuth);
+  const { accessToken, patient } = useAppSelector((state) => state.patientAuth.auth);
+
   const [isConnected, setIsConnected] = React.useState(false);
 
   const connect = (userId: string, role: 'doctor' | 'patient') => {

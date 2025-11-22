@@ -86,6 +86,7 @@ export class ChatController {
         userId,
         headers: req.headers.authorization?.substring(0, 50)
       });
+console.log(userRole,'user is ');
 
       if (!userRole || !userId) {
         return res.status(401).json({ 
@@ -102,8 +103,6 @@ export class ChatController {
       }
 
       const cleanQuery = q.trim();
-
-      // 🔒 CRITICAL: Hard-set role-based search type
       let searchType: 'doctors' | 'patients';
       
       if (userRole === 'patient') {
@@ -167,9 +166,6 @@ export class ChatController {
         offset ? parseInt(offset as string) : 0
       );
 
-      // Convert Map to object for JSON serialization
-      const unreadCountsObj = Object.fromEntries(unreadCounts);
-
       console.log(`✅ Retrieved ${chatRooms.length} chat rooms for ${userRole} ${userId}`);
 
       return res.status(200).json({
@@ -177,7 +173,7 @@ export class ChatController {
         message: 'Chat rooms retrieved successfully',
         data: {
           chatRooms,
-          unreadCounts: unreadCountsObj
+          unreadCounts
         },
       });
     } catch (error: any) {

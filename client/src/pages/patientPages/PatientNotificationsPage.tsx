@@ -29,7 +29,7 @@ const PatientNotificationsPage: React.FC = () => {
   // Get data from Redux - incomingCallsData is now a plain object
   const { notifications, loading, error, unreadCount, incomingCallsData } = useAppSelector((state) => state.notifications);
   const { isConnected } = useSocket();
-  const { patient } = useAppSelector((state) => state.auth);
+  const { patient } = useAppSelector((state) => state.patientAuth.auth);
   
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);

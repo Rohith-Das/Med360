@@ -8,8 +8,8 @@ export const useNotifications = (role: 'doctor' | 'patient' = 'doctor') => {
   const { notifications, unreadCount, loading, error } = useAppSelector(
     (state) => state.notifications
   );
-  const { doctorAccessToken, doctor } = useAppSelector((state) => state.doctorAuth);
-  const { accessToken, patient } = useAppSelector((state) => state.auth);
+  const { doctorAccessToken, doctor } = useAppSelector((state) => state.doctorAuth.doctorAuth);
+  const { accessToken, patient } = useAppSelector((state) => state.patientAuth.auth);
 
   useEffect(() => {
     const isAuthenticated = role === 'doctor' ? (doctorAccessToken && doctor?.id) : (accessToken && patient?.id);

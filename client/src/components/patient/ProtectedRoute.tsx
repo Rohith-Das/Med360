@@ -4,6 +4,6 @@ import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 export const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
-  const  accessToken  = useAppSelector((state) => state.auth.accessToken);
+  const  accessToken  = useAppSelector((state) => state.patientAuth.auth.accessToken);
   return accessToken ? children : <Navigate to="/login" />;
 };

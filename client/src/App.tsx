@@ -128,9 +128,8 @@ function App() {
       <Route
         path="/doctor/Doctor-chat"
         element={
-          <ProtectedRoute>
+
             <DoctorChatPage />
-          </ProtectedRoute>
         }
       />
     </Routes>

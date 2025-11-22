@@ -23,8 +23,8 @@ const VideoCallPage: React.FC = () => {
   const location = useLocation();
   const locationState = location.state as LocationState;
   
-  const { doctor } = useAppSelector((state) => state.doctorAuth);
-  const { patient } = useAppSelector((state) => state.auth);
+  const { doctor } = useAppSelector((state) => state.doctorAuth.doctorAuth);
+  const { patient } = useAppSelector((state) => state.patientAuth.auth);
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

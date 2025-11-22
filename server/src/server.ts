@@ -20,6 +20,9 @@ import { initializeSocketServer } from "./infrastructure/socket/socketServer";
 import { ChatSocketServer } from "./infrastructure/socket/chatSocketServer";
 import { ChatRouter } from "./presentation/routes/chatRoutes";
 
+const redis=require('redis')
+const client = redis.createClient();
+
 let chatSocketServerInstance: ChatSocketServer;
 
 export const getChatSocketServer = (): ChatSocketServer => {

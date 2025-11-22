@@ -39,7 +39,7 @@ const DoctorAppointments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const { isConnected } = useSocket();
-  const doctor = useAppSelector((state) => state.doctorAuth.doctor);
+  const doctor = useAppSelector((state) => state.doctorAuth.doctorAuth.doctor);
   const { incomingCallsData } = useAppSelector((state) => state.notifications);
 
   useEffect(() => {

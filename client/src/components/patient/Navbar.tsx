@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
   const navigate=useNavigate()
-  const patient=useSelector((state:RootState)=>state.auth.patient)
+  const patient=useSelector((state:RootState)=>state.patientAuth.auth.patient)
   const [isMobile, setIsMobile] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
