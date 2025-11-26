@@ -19,9 +19,8 @@ import VideoCallRouter from "./presentation/routes/VideoCallRoutes";
 import { initializeSocketServer } from "./infrastructure/socket/socketServer";
 import { ChatSocketServer } from "./infrastructure/socket/chatSocketServer";
 import { ChatRouter } from "./presentation/routes/chatRoutes";
+import PrescriptionRouter from "./presentation/routes/PrescriptionRoutes";
 
-const redis=require('redis')
-const client = redis.createClient();
 
 let chatSocketServerInstance: ChatSocketServer;
 
@@ -66,6 +65,7 @@ app.use('/api/schedules', ScheduleRouter);
 app.use("/api/payment", PaymentRouter);
 app.use('/api/videocall', VideoCallRouter);
 app.use('/api/chat', ChatRouter);
+app.use('/api/prescriptions', PrescriptionRouter);
 
 
 app.get('/api/socket-status',(req,res)=>{

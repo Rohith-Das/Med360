@@ -4,11 +4,12 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/patient/Navbar";
 import { toast, ToastContainer } from "react-toastify";
 import axiosInstance from "../../api/axiosInstance";
-import { Video, VideoOff, Clock, Calendar, User } from "lucide-react";
+import { Video, VideoOff, Clock, Calendar, User, FileText, Loader2 } from "lucide-react";
 import VideoCall from "@/components/videoCall/VideoCall";
 import { useSocket } from "@/components/providers/SocketProvider";
 import { useAppSelector } from "@/app/hooks";
 import { socketService } from "@/features/notification/socket";
+import PatientPrescriptionView from "@/components/patient/PatientViewPrescriptionModal";
 
 interface AppointmentData {
   _id: string;
@@ -30,12 +31,18 @@ interface AppointmentData {
   };
 }
 
-interface VideoCallState {
-  active: boolean;
-  roomId?: string;
-  appointmentId?: string;
-  isIncoming?: boolean;
-  callerName?: string;
+interface PrescriptionData {
+  _id: string;
+  diagnosis: string;
+  medicines: any[];
+  tests?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+  doctorId?: {
+    name: string;
+    specialization: { name: string };
+  };
 }
 
 const ViewAppointment: React.FC = () => {
@@ -50,11 +57,16 @@ const ViewAppointment: React.FC = () => {
   const patient = useAppSelector((state) => state.patientAuth.auth.patient);
   const { incomingCallsData } = useAppSelector((state) => state.notifications);
 
+  // Prescription state
+  const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionData | null>(null);
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  const [loadingPrescriptions, setLoadingPrescriptions] = useState<{ [key: string]: boolean }>({});
+  const [prescriptionCache, setPrescriptionCache] = useState<{ [key: string]: PrescriptionData | null }>({});
+
   useEffect(() => {
     fetchAppointments();
   }, []);
 
-  // Enhanced socket event handling
   useEffect(() => {
     if (!isConnected) return;
 
@@ -106,6 +118,39 @@ const ViewAppointment: React.FC = () => {
     }
   };
 
+  const fetchPrescription = async (appointmentId: string) => {
+    // Check cache first
+    if (prescriptionCache[appointmentId] !== undefined) {
+      setSelectedPrescription(prescriptionCache[appointmentId]);
+      setShowPrescriptionModal(true);
+      return;
+    }
+
+    setLoadingPrescriptions(prev => ({ ...prev, [appointmentId]: true }));
+    try {
+      const res = await axiosInstance.get(`/patient/prescriptions/appointment/${appointmentId}`);
+      
+      if (res.data.success && res.data.data) {
+        const prescription = res.data.data;
+        setPrescriptionCache(prev => ({ ...prev, [appointmentId]: prescription }));
+        setSelectedPrescription(prescription);
+        setShowPrescriptionModal(true);
+      } else {
+        setPrescriptionCache(prev => ({ ...prev, [appointmentId]: null }));
+        toast.info("No prescription available for this appointment yet");
+      }
+    } catch (err: any) {
+      console.error("Error fetching prescription:", err);
+      if (err.response?.status === 404) {
+        setPrescriptionCache(prev => ({ ...prev, [appointmentId]: null }));
+        toast.info("No prescription available for this appointment yet");
+      } else {
+        toast.error(err.response?.data?.message || "Failed to fetch prescription");
+      }
+    } finally {
+      setLoadingPrescriptions(prev => ({ ...prev, [appointmentId]: false }));
+    }
+  };
   const refreshWalletData = async () => {
     try {
       const res = await axiosInstance.get("/patient/wallet");
@@ -141,7 +186,6 @@ const ViewAppointment: React.FC = () => {
           }
         });
 
-        // Join the room immediately after initiating
         socketService.joinVideoRoom(response.data.data.roomId, {
           appointmentId,
           userId: patient?.id,
@@ -167,7 +211,7 @@ const ViewAppointment: React.FC = () => {
       if (response.data.success) {
         console.log('✅ Successfully joined call');
         
-     navigate(`/video-call/${roomId}`, {
+        navigate(`/video-call/${roomId}`, {
           state: {
             appointmentId,
             userRole: 'patient',
@@ -175,7 +219,8 @@ const ViewAppointment: React.FC = () => {
             callerName
           }
         });
-            toast.success('Joined video call successfully!');
+        
+        toast.success('Joined video call successfully!');
 
         socketService.joinVideoRoom(roomId, {
           appointmentId,
@@ -183,16 +228,12 @@ const ViewAppointment: React.FC = () => {
           userRole: 'patient',
           userName: patient?.name || 'Patient'
         });
-        
-        toast.success('Joined video call successfully!');
       }
     } catch (error: any) {
       console.error('💥 Error accepting call:', error);
       toast.error(error.response?.data?.message || 'Failed to join call');
     }
   };
-
-
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -269,7 +310,6 @@ const ViewAppointment: React.FC = () => {
     (appointment) => filterStatus === "all" || appointment.status === filterStatus
   );
 
-  // Check if there's an active incoming call for this appointment
   const hasIncomingCall = (appointmentId: string) => {
     return appointmentId in incomingCallsData;
   };
@@ -318,7 +358,6 @@ const ViewAppointment: React.FC = () => {
     );
   }
 
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -364,6 +403,7 @@ const ViewAppointment: React.FC = () => {
                 const videoCallStatus = isVideoCallAvailable(appointment);
                 const canCancel = canCancelAppointment(appointment);
                 const hasIncoming = hasIncomingCall(appointment._id);
+                const isLoadingPrescription = loadingPrescriptions[appointment._id];
                 
                 return (
                   <div
@@ -435,6 +475,26 @@ const ViewAppointment: React.FC = () => {
                         </div>
                       </div>
                       <div className="mt-4 md:mt-0 md:ml-6 flex flex-col space-y-3">
+                        {/* Prescription Button */}
+                        <button
+                          onClick={() => fetchPrescription(appointment._id)}
+                          disabled={isLoadingPrescription}
+                          className="w-full flex items-center justify-center px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all duration-200 disabled:opacity-50"
+                        >
+                          {isLoadingPrescription ? (
+                            <>
+                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="w-5 h-5 mr-2" />
+                              View Prescription
+                            </>
+                          )}
+                        </button>
+
+                        {/* Video Call Buttons */}
                         {videoCallStatus.available ? (
                           <>
                             {hasIncoming && incomingCallsData[appointment._id] ? (
@@ -473,6 +533,7 @@ const ViewAppointment: React.FC = () => {
                             </p>
                           </div>
                         )}
+
                         {appointment.notes && (
                           <div className="text-sm text-gray-600">
                             <strong>Notes:</strong> {appointment.notes}
@@ -503,6 +564,20 @@ const ViewAppointment: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Prescription Modal */}
+      {showPrescriptionModal && selectedPrescription && (
+        <PatientPrescriptionView
+          isOpen={showPrescriptionModal}
+          onClose={() => {
+            setShowPrescriptionModal(false);
+            setSelectedPrescription(null);
+          }}
+          prescription={selectedPrescription}
+          patientName={patient?.name || "Patient"}
+          doctorName={selectedPrescription.doctorId?.name}
+        />
+      )}
     </div>
   );
 };

@@ -16,11 +16,14 @@ import { AppointmentController } from '../controllers/Appointment/AppointmentCon
 import { WalletController } from '../controllers/wallet/WalletController'
 import { chatbotController } from '../controllers/patient/AIChatbot/chatbotController'
 import { NotificationController } from '../controllers/notification/NotificationController'
+import { container } from '../../infrastructure/config/container';
+import { PrescriptionController } from '../controllers/doctorsControllers/PrescriptionController'
 
 const PatientRouter=express.Router()
 const appointmentController=new AppointmentController()
 const walletController = new WalletController()
 const notificationController = new NotificationController();
+const prescriptionController = container.resolve(PrescriptionController);
 
 PatientRouter.post('/register', registerPatientController);
 PatientRouter.post('/verify-otp', verifyOtpController);
@@ -48,4 +51,10 @@ PatientRouter.put('/notifications/:notificationId/read', authGuard, notification
 PatientRouter.get('/wallet/balance', authGuard, walletController.getWalletBalance)
 PatientRouter.get('/wallet/transactions', authGuard, walletController.getTransactionHistory)
 PatientRouter.post('/chatbot',authGuard,chatbotController)
+PatientRouter.get(
+  '/prescriptions/appointment/:appointmentId',
+  authGuard,
+  prescriptionController.getPrescriptionByAppointment.bind(prescriptionController)
+);
+
 export default PatientRouter;

@@ -8,7 +8,7 @@ const doctorAxiosInstance = axios.create({
 
 doctorAxiosInstance.interceptors.request.use((config) => {
   const state = store.getState();
-  let token = state.doctorAuth.doctorAccessToken || localStorage.getItem("doctorAccessToken");
+  let token = state.doctorAuth.doctorAuth.doctorAccessToken || localStorage.getItem("doctorAccessToken");
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`;
   }

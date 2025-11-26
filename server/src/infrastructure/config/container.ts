@@ -94,6 +94,14 @@ import { GetChatRoomMessagesUC } from "../../application/Chats/GetChatRoomMessag
 import { GetUnreadCountUC } from "../../application/Chats/GetUnreadCountUC";
 import { GetUserChatRoomsUC } from "../../application/Chats/GetUserChatRoomsUC";
 import { SendMessageUC } from "../../application/Chats/SendMessageUC";
+import { IPrescriptionRepository } from "../../domain/repositories/PrescriptionRepository";
+import { MongoPrescriptionRepo } from "../database/repositores/MongoPrescriptionRepo";
+import { RedisService } from "../services/RedisService";
+import { CreatePrescriptionUC } from "../../application/prescriptionUC/CreatePrescriptionUC";
+import { GetPrescriptionByAppointmentUC } from "../../application/prescriptionUC/GetPrescriptionByAppointmentUC";
+import { SoftDeletePrescriptionUC } from "../../application/prescriptionUC/SoftDeletePrescriptionUC";
+import { UpdatePrescriptionUC } from "../../application/prescriptionUC/UpdatePrescriptionUC";
+
 
 // Database
 container.registerSingleton(mongoDBClient);
@@ -106,15 +114,24 @@ container.register<IApplicantRepository>("IApplicantRepository",MongoApplicantRe
 container.register<IDoctorRepository>("IDoctorRepository", MongoDoctorRepository);
 container.register<IScheduleRepository>('IScheduleRepository',MongoScheduleRepository)
 container.register<IPaymentRepository>('IPaymentRepository', MongoPaymentRepository);
-container.register<IAppointmentRepository>('IAppointmentRepository', MongoAppointmentRepo);
+container.register<IAppointmentRepository>("IAppointmentRepository", {
+  useClass: MongoAppointmentRepo
+});
+
 container.register<IWalletRepository>('IWalletRepository', MongoWalletRepo);
 container.register<INotificationRepository>('INotificationRepository', MongoNotificationRepository);
-// Services
+container.register<IPrescriptionRepository>('IPrescriptionRepository', {
+  useClass: MongoPrescriptionRepo
+});
+
+// Services5
 container.registerSingleton(EmailService);
 container.registerSingleton(OTPService);
 container.register<AIService>("AIService",{useClass:GeminiService})
 container.register<AuthService>("AuthService", { useClass: JwtAuthService });
 container.register<HashService>("HashService", { useClass: BcryptHashService });
+container.registerSingleton(RedisService);
+
 // Use Cases
 container.registerSingleton(PatientRegistrationUC);
 container.registerSingleton(RequestPasswordResetOtpUC);
@@ -198,4 +215,10 @@ container.registerSingleton(GetChatRoomMessagesUC);
 container.registerSingleton(GetUnreadCountUC);
 container.registerSingleton(GetUserChatRoomsUC);
 container.registerSingleton(SendMessageUC);
+
+container.registerSingleton(CreatePrescriptionUC)
+container.registerSingleton(GetPrescriptionByAppointmentUC)
+container.registerSingleton(SoftDeletePrescriptionUC)
+container.registerSingleton(UpdatePrescriptionUC)
+
 export {container}
