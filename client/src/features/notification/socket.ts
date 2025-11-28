@@ -88,7 +88,6 @@ class SocketService {
       });
     });
 
-    // CRITICAL: Enhanced incoming video call handler
     this.socket.on('incoming_video_call', (data) => {
       console.log('📞 INCOMING VIDEO CALL via socket:', data);
       console.log('📦 Call data structure:', JSON.stringify(data, null, 2));

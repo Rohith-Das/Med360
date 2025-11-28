@@ -154,6 +154,10 @@ const VideoCall: React.FC<VideoCallProps> = ({
         pc.addTrack(track, localStreamRef.current!);
       });
     }
+    if (!localStreamRef.current) {
+  console.warn('⚠️ Local stream not ready yet. Tracks will be added later.');
+}
+
 
     // Handle incoming tracks
     pc.ontrack = (event) => {
@@ -480,7 +484,8 @@ const VideoCall: React.FC<VideoCallProps> = ({
     newSocket.on('video:room-participants', async (data: any) => {
       console.log('📋 Room participants list:', data);
       
-      if (data.participants && data.participants.length > 0 && isCallInitiated && localStreamRef.current) {
+     if (data.participants && data.participants.length > 0)
+ {
         const newParticipants: Participant[] = [];
         
         // Only process new participants
@@ -664,6 +669,30 @@ const VideoCall: React.FC<VideoCallProps> = ({
         setIncomingCall(false);
         await initializeMedia();
         setIsCallInitiated(true);
+
+        // ✅ FORCE re-offer to all existing participants
+setTimeout(async () => {
+  participants.forEach(async (participant) => {
+    if (participant.socketId !== socketRef.current?.id) {
+      const pc = createPeerConnection(participant.socketId, participant.userId, true);
+
+      if (pc) {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        socketRef.current?.emit('video:offer', {
+          roomId,
+          offer: pc.localDescription,
+          targetSocketId: participant.socketId
+        });
+
+        console.log('✅ Re-offer sent after accept to:', participant.socketId);
+      }
+    }
+  });
+}, 500);
+
+
         
         toast.success('Joined video call');
       } else {

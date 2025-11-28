@@ -5,10 +5,8 @@ import Navbar from "../../components/patient/Navbar";
 import { toast, ToastContainer } from "react-toastify";
 import axiosInstance from "../../api/axiosInstance";
 import { Video, VideoOff, Clock, Calendar, User, FileText, Loader2 } from "lucide-react";
-import VideoCall from "@/components/videoCall/VideoCall";
 import { useSocket } from "@/components/providers/SocketProvider";
 import { useAppSelector } from "@/app/hooks";
-import { socketService } from "@/features/notification/socket";
 import PatientPrescriptionView from "@/components/patient/PatientViewPrescriptionModal";
 
 interface AppointmentData {
@@ -55,7 +53,7 @@ const ViewAppointment: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const { isConnected } = useSocket();
   const patient = useAppSelector((state) => state.patientAuth.auth.patient);
-  const { incomingCallsData } = useAppSelector((state) => state.notifications);
+
 
   // Prescription state
   const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionData | null>(null);
@@ -67,44 +65,7 @@ const ViewAppointment: React.FC = () => {
     fetchAppointments();
   }, []);
 
-  useEffect(() => {
-    if (!isConnected) return;
 
-    const handleIncomingCall = (event: Event) => {
-      const data = (event as CustomEvent).detail;
-      console.log("📞 Incoming video call:", data);
-      
-      toast.info(`Incoming call from Dr. ${data.initiatorName || "Doctor"}`, {
-        position: "top-right",
-        autoClose: 15000,
-        onClick: () => {
-          console.log('🎯 Toast clicked - accepting call');
-          navigate(`/video-call/${data.roomId}`,{
-            state:{
-              appointmentId:data.apointmentId,
-              userRole:'patient',
-              isComing:true,
-              callerName:`Dr ${data.initiatorName||'doctor'}`
-            }
-          })
-        },
-      });
-    };
-
-    const handleCallEnded = (event: Event) => {
-      const data = (event as CustomEvent).detail;
-      console.log("📞 Video call ended:", data);
-      toast.info("Video call has ended", { position: "top-right" });
-    };
-
-    window.addEventListener("incoming_video_call", handleIncomingCall);
-    window.addEventListener("video_call_ended", handleCallEnded);
-
-    return () => {
-      window.removeEventListener("incoming_video_call", handleIncomingCall);
-      window.removeEventListener("video_call_ended", handleCallEnded);
-    };
-  }, [isConnected,navigate]);
 
   const fetchAppointments = async () => {
     try {
@@ -160,80 +121,7 @@ const ViewAppointment: React.FC = () => {
     }
   };
 
-  const isVideoCallAvailable = (appointment: AppointmentData): { available: boolean; message?: string } => {
-    if (appointment.status !== "confirmed") {
-      return { available: false, message: "Appointment must be confirmed" };
-    }
-    return { available: true };
-  };
-
-  const initiateVideoCall = async (appointmentId: string) => {
-    try {
-      console.log('🔵 Initiating video call for appointment:', appointmentId);
-      
-      const response = await axiosInstance.post("/videocall/initiate", {
-        appointmentId,
-      });
-
-      if (response.data.success) {
-        console.log('✅ Video call initiated:', response.data.data);
-        toast.success("Video call initiated! Notification sent to doctor.");
-        navigate(`/video-call/${response.data.data.roomId}`, {
-          state: {
-            appointmentId,
-            userRole: 'patient',
-            isIncoming: false
-          }
-        });
-
-        socketService.joinVideoRoom(response.data.data.roomId, {
-          appointmentId,
-          userId: patient?.id,
-          userRole: 'patient',
-          userName: patient?.name || 'Patient'
-        });
-      }
-    } catch (error: any) {
-      console.error("💥 Error initiating video call:", error);
-      toast.error(error.response?.data?.message || "Failed to initiate video call");
-    }
-  };
-
-  const acceptIncomingCall = async (roomId: string, appointmentId: string, callerName: string) => {
-    try {
-      console.log('🔄 Accepting incoming call:', { roomId, appointmentId, callerName });
-      
-      toast.info('Joining video call...', { autoClose: 2000 });
-      
-      const response = await axiosInstance.post(`/videocall/join/${roomId}`);
-      console.log('📡 API Response:', response.data);
-      
-      if (response.data.success) {
-        console.log('✅ Successfully joined call');
-        
-        navigate(`/video-call/${roomId}`, {
-          state: {
-            appointmentId,
-            userRole: 'patient',
-            isIncoming: true,
-            callerName
-          }
-        });
-        
-        toast.success('Joined video call successfully!');
-
-        socketService.joinVideoRoom(roomId, {
-          appointmentId,
-          userId: patient?.id,
-          userRole: 'patient',
-          userName: patient?.name || 'Patient'
-        });
-      }
-    } catch (error: any) {
-      console.error('💥 Error accepting call:', error);
-      toast.error(error.response?.data?.message || 'Failed to join call');
-    }
-  };
+ 
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -310,9 +198,7 @@ const ViewAppointment: React.FC = () => {
     (appointment) => filterStatus === "all" || appointment.status === filterStatus
   );
 
-  const hasIncomingCall = (appointmentId: string) => {
-    return appointmentId in incomingCallsData;
-  };
+
 
   const CancelDialog: React.FC<{ appointmentId: string }> = ({ appointmentId }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -400,17 +286,12 @@ const ViewAppointment: React.FC = () => {
           ) : (
             <div className="space-y-6">
               {filteredAppointments.map((appointment) => {
-                const videoCallStatus = isVideoCallAvailable(appointment);
                 const canCancel = canCancelAppointment(appointment);
-                const hasIncoming = hasIncomingCall(appointment._id);
                 const isLoadingPrescription = loadingPrescriptions[appointment._id];
                 
                 return (
                   <div
-                    key={appointment._id}
-                    className={`bg-white rounded-lg shadow-sm border p-6 ${
-                      hasIncoming ? 'border-l-4 border-l-green-500 bg-green-50' : ''
-                    }`}
+                 
                   >
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                       <div className="flex-1">
@@ -465,13 +346,7 @@ const ViewAppointment: React.FC = () => {
                           <p className="text-gray-600">
                             Consultation Fee: ₹{appointment.consultationFee}
                           </p>
-                          {hasIncoming && (
-                            <div className="flex items-center mt-2">
-                              <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium animate-pulse">
-                                📞 Incoming Call Available
-                              </span>
-                            </div>
-                          )}
+                         
                         </div>
                       </div>
                       <div className="mt-4 md:mt-0 md:ml-6 flex flex-col space-y-3">
@@ -494,45 +369,7 @@ const ViewAppointment: React.FC = () => {
                           )}
                         </button>
 
-                        {/* Video Call Buttons */}
-                        {videoCallStatus.available ? (
-                          <>
-                            {hasIncoming && incomingCallsData[appointment._id] ? (
-                              <button
-                                onClick={() => acceptIncomingCall(
-                                  incomingCallsData[appointment._id].roomId,
-                                  appointment._id,
-                                  `Dr. ${incomingCallsData[appointment._id].initiatorName || 'Doctor'}`
-                                )}
-                                className="w-full flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 animate-pulse"
-                              >
-                                <Video className="w-5 h-5 mr-2" />
-                                Accept Incoming Call
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => initiateVideoCall(appointment._id)}
-                                className="w-full flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200"
-                              >
-                                <Video className="w-5 h-5 mr-2" />
-                                Start Video Call
-                              </button>
-                            )}
-                          </>
-                        ) : (
-                          <div className="flex flex-col space-y-2">
-                            <button
-                              disabled
-                              className="w-full flex items-center justify-center px-4 py-3 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed"
-                            >
-                              <VideoOff className="w-5 h-5 mr-2" />
-                              Video Call Unavailable
-                            </button>
-                            <p className="text-sm text-gray-600 text-center">
-                              {videoCallStatus.message}
-                            </p>
-                          </div>
-                        )}
+                     
 
                         {appointment.notes && (
                           <div className="text-sm text-gray-600">

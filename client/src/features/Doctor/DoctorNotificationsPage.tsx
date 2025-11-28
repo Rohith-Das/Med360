@@ -10,30 +10,19 @@ import doctorAxiosInstance from '@/api/doctorAxiosInstance';
 import { toast } from 'react-toastify';
 import { socketService } from '../notification/socket';
 
-interface IncomingCallData {
-  roomId: string;
-  appointmentId: string;
-  initiatorName: string;
-  appointmentDate: string;
-  appointmentTime: string;
-  callType: string;
-  initiatorRole: string;
-  initiatorId: string;
-}
 
 const DoctorNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { notifications, loading, error, unreadCount, incomingCallsData } = useAppSelector((state) => state.notifications);
+  const { notifications, loading, error, unreadCount } = useAppSelector((state) => state.notifications);
   const { isConnected } = useSocket();
   const { doctor } = useAppSelector((state) => state.doctorAuth.doctorAuth);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [isJoiningCall, setIsJoiningCall] = useState(false); // Changed from showVideoCall
+
   
   const itemsPerPage = 10;
 
-  const incomingCallsCount = Object.keys(incomingCallsData).length;
 
   // Fetch notifications on mount and filter change
   useEffect(() => {
@@ -45,111 +34,6 @@ const DoctorNotificationsPage: React.FC = () => {
     }));
   }, [dispatch, currentPage, filter]);
 
-  // Socket event handling - UPDATED for route-based approach
-  useEffect(() => {
-    if (!isConnected) {
-      console.warn('⚠️ Socket not connected, skipping event listeners');
-      return;
-    }
-
-    console.log('🔌 Setting up socket event listeners');
-
-    const handleIncomingCall = (event: Event) => {
-      const data = (event as CustomEvent).detail as IncomingCallData;
-      console.log('🔔 Incoming video call received:', data);
-      
-      // Validate required fields
-      if (!data.roomId || !data.appointmentId) {
-        console.error('❌ Invalid call data:', data);
-        toast.error('Invalid video call data received');
-        return;
-      }
-
-      // Show toast notification with direct navigation
-      toast.info(`Incoming call from ${data.initiatorName || 'Patient'}`, {
-        position: "top-right",
-        autoClose: 15000,
-        closeOnClick: true,
-        onClick: () => {
-          console.log('🎯 Toast clicked - accepting call');
-          // Navigate directly to video call page
-          navigate(`/video-call/${data.roomId}`, {
-            state: {
-              appointmentId: data.appointmentId,
-              userRole: 'doctor',
-              isIncoming: true,
-              callerName: data.initiatorName || 'Patient'
-            }
-          });
-        }
-      });
-
-      // Play notification sound (optional)
-      const audio = new Audio('/notification-sound.mp3');
-      audio.play().catch(e => console.log('Audio play failed:', e));
-    };
-
-    const handleCallEnded = (event: Event) => {
-      const data = (event as CustomEvent).detail;
-      console.log('📞 Call ended event received:', data);
-      toast.info('Video call has ended');
-    };
-
-    // Add event listeners
-    window.addEventListener('incoming_video_call', handleIncomingCall);
-    window.addEventListener('video_call_ended', handleCallEnded);
-    
-    console.log('✅ Socket event listeners registered');
-
-    // Cleanup
-    return () => {
-      console.log('🧹 Cleaning up socket event listeners');
-      window.removeEventListener('incoming_video_call', handleIncomingCall);
-      window.removeEventListener('video_call_ended', handleCallEnded);
-    };
-  }, [isConnected, navigate]); // Added navigate dependency
-
-  // UPDATED: Simplified acceptVideoCall function - just navigates
-  const acceptVideoCall = async (roomId: string, appointmentId: string, callerName: string, isIncoming: boolean = false) => {
-    try {
-      if (isJoiningCall) return;
-      
-      setIsJoiningCall(true);
-      console.log('🔄 Starting acceptVideoCall:', { roomId, appointmentId, callerName, isIncoming });
-      
-      // Show loading state
-      toast.info('Joining video call...', { autoClose: 2000 });
-      
-      // Verify we can join the call
-      const response = await doctorAxiosInstance.post(`/videocall/doctor/join/${roomId}`);
-      console.log('📡 API Response:', response.data);
-      
-      if (response.data.success) {
-        console.log('✅ API call successful, navigating to video call');
-        
-        // Navigate to video call page
-        navigate(`/video-call/${roomId}`, {
-          state: {
-            appointmentId,
-            userRole: 'doctor',
-            isIncoming,
-            callerName
-          }
-        });
-        
-        // Socket join will be handled in VideoCallPage component
-        toast.success('Joined video call successfully!');
-      } else {
-        throw new Error(response.data.message || 'Failed to join call');
-      }
-    } catch (error: any) {
-      console.error('💥 Error in acceptVideoCall:', error);
-      const errorMessage = error.response?.data?.message || 'Failed to join call';
-      toast.error(errorMessage);
-    } finally {
-      setIsJoiningCall(false);
-    }
-  };
 
   const handleMarkAsRead = async (notificationId: string) => {
     try {
@@ -159,70 +43,6 @@ const DoctorNotificationsPage: React.FC = () => {
     }
   };
 
-  // UPDATED: Enhanced notification join handler
-  const handleJoinCall = async (notification: Notification) => {
-    console.log('🎯 handleJoinCall called with notification:', notification);
-    
-    if (notification.type !== 'video_call_initiated') {
-      console.error('❌ Invalid notification type:', notification.type);
-      toast.error('Invalid video call notification');
-      return;
-    }
-
-    if (isJoiningCall) {
-      toast.info('Already joining a call...');
-      return;
-    }
-
-    try {
-      console.log('✅ Video call notification detected');
-      const appointmentId = notification.data?.appointmentId;
-      
-      if (!appointmentId) {
-        console.error('❌ No appointment ID in notification');
-        toast.error('Invalid notification - missing appointment ID');
-        return;
-      }
-      
-      // Check Redux for stored socket data
-      const storedCallData = incomingCallsData[appointmentId];
-      
-      if (storedCallData) {
-        console.log('📞 Using stored socket call data:', storedCallData);
-        
-        // Mark notification as read
-        await handleMarkAsRead(notification.id);
-        
-        // Join the call with proper type checking
-        await acceptVideoCall(
-          storedCallData.roomId,
-          storedCallData.appointmentId,
-          storedCallData.initiatorName || 'Patient', // Provide default value
-          false
-        );
-      } else {
-        console.warn('⚠️ No socket data found for appointment:', appointmentId);
-        
-        // Fallback: try using notification data
-        if (notification.data?.roomId) {
-          console.log('🔄 Using notification roomId as fallback');
-          await handleMarkAsRead(notification.id);
-          await acceptVideoCall(
-            notification.data.roomId,
-            appointmentId,
-            notification.data.initiatorName || 'Patient', // Provide default value
-            false
-          );
-        } else {
-          toast.error('Call data not available. Please wait for the incoming call notification or refresh the page.');
-          console.log('💡 Suggestion: Refresh notifications to sync call data');
-        }
-      }
-    } catch (error) {
-      console.error('💥 Error in handleJoinCall:', error);
-      toast.error('Failed to join call from notification');
-    }
-  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -251,9 +71,6 @@ const DoctorNotificationsPage: React.FC = () => {
     const { data } = notification;
     if (!data) return null;
 
-    const hasCallData = notification.type === 'video_call_initiated' && 
-      data.appointmentId && 
-      data.appointmentId in incomingCallsData;
 
     return (
       <div className="mt-2 text-sm text-gray-600">
@@ -272,12 +89,7 @@ const DoctorNotificationsPage: React.FC = () => {
         {data.cancelReason && (
           <p><strong>Cancel Reason:</strong> {data.cancelReason}</p>
         )}
-        {hasCallData && (
-          <p className="text-green-600 font-medium">✅ Ready to join call</p>
-        )}
-        {notification.type === 'video_call_initiated' && !hasCallData && (
-          <p className="text-amber-600 font-medium">⏳ Waiting for call data...</p>
-        )}
+     
       </div>
     );
   };
@@ -317,14 +129,7 @@ const DoctorNotificationsPage: React.FC = () => {
                 <p className="text-gray-600 mt-2">
                   {unreadCount > 0 ? `You have ${unreadCount} unread notifications` : 'All caught up!'}
                 </p>
-                {incomingCallsCount > 0 && (
-                  <div className="mt-2 p-3 bg-green-50 border-l-4 border-green-500 rounded">
-                    <p className="text-green-800 text-sm font-semibold flex items-center">
-                      <FaVideo className="mr-2" />
-                      {incomingCallsCount} active call{incomingCallsCount > 1 ? 's' : ''} available to join
-                    </p>
-                  </div>
-                )}
+             
                 {!isConnected && (
                   <div className="mt-2 p-3 bg-yellow-50 border-l-4 border-yellow-500 rounded">
                     <p className="text-yellow-800 text-sm font-medium">
@@ -381,9 +186,7 @@ const DoctorNotificationsPage: React.FC = () => {
               </div>
             ) : (
               notifications.map((notification) => {
-                const hasCallData = notification.type === 'video_call_initiated' && 
-                  notification.data?.appointmentId && 
-                  notification.data.appointmentId in incomingCallsData;
+    
 
                 return (
                   <div
@@ -424,21 +227,7 @@ const DoctorNotificationsPage: React.FC = () => {
                         </div>
                         
                         <div className="flex items-center space-x-2 ml-4">
-                          {notification.type === 'video_call_initiated' && (
-                            <button
-                              onClick={() => handleJoinCall(notification)}
-                              disabled={!hasCallData || isJoiningCall}
-                              className={`px-4 py-2 rounded-lg transition-all text-sm font-medium flex items-center gap-2 ${
-                                hasCallData 
-                                  ? 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg' 
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
-                              title={hasCallData ? 'Join Call' : 'Waiting for call data...'}
-                            >
-                              <FaVideo />
-                              {isJoiningCall ? 'Joining...' : hasCallData ? 'Join Call' : 'Waiting...'}
-                            </button>
-                          )}
+                        
                           {!notification.isRead && (
                             <button
                               onClick={() => handleMarkAsRead(notification.id)}

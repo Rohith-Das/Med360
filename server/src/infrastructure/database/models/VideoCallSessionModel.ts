@@ -6,11 +6,14 @@ export interface IVideoCallSession extends Document {
   doctorId: string;
   patientId: string;
   status: "waiting" | "active" | "ended";
-  startedAt?: Date;
+  startedAt: Date;
   endedAt?: Date;
   initiatedBy: "doctor" | "patient";
   doctorName?: string;
   patientName?: string;
+  durationSeconds?: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const VideoCallSessionSchema = new Schema<IVideoCallSession>({
@@ -28,8 +31,27 @@ const VideoCallSessionSchema = new Schema<IVideoCallSession>({
   initiatedBy: { type: String, enum: ["doctor", "patient"], required: true },
   doctorName: String,
   patientName: String,
+  durationSeconds: { type: Number },
+},
+{
+  timestamps: true,
 });
+VideoCallSessionSchema.pre("save", function (next) {
+  // Ensure startedAt is always set
+  if (!this.startedAt) {
+    this.startedAt = new Date();
+  }
 
+  // When status becomes "ended" → calculate duration
+  if (this.status === "ended" && this.startedAt) {
+    this.endedAt = this.endedAt || new Date();
+    this.durationSeconds = Math.floor(
+      (this.endedAt.getTime() - this.startedAt.getTime()) / 1000
+    );
+  }
+
+  next();
+});
 export const VideoCallSessionModel = mongoose.model<IVideoCallSession>(
   "VideoCallSession",
   VideoCallSessionSchema

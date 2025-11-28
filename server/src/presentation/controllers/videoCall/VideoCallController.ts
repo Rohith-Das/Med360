@@ -1,58 +1,60 @@
-// server/src/presentation/controllers/videoCall/VideoCallController.ts
+// src/presentation/controllers/videoCall/VideoCallController.ts
 import { Request, Response } from "express";
 import { container } from "tsyringe";
 import { VideoCallUseCase } from "../../../application/videoCall/VideoCallUC";
 import { AuthRequest } from "../../middlewares/AuthRequest";
 
 export class VideoCallController {
+  private videoCallUC = container.resolve(VideoCallUseCase); // ← Cache instance (safe in singleton scope)
+
   async initiateCall(req: AuthRequest, res: Response): Promise<Response> {
     try {
       const { appointmentId } = req.body;
-      const userId = req.user?.userId;
-      const userRole = req.user?.role;
-
-      console.log(`🔵 Initiate call request - User: ${userId}, Role: ${userRole}, Appointment: ${appointmentId}`);
-
-      if (!userId || !userRole) {
-        return res.status(401).json({
-          success: false,
-          message: 'Unauthorized - Missing user credentials'
-        });
-      }
+      const userId = req.user?.userId!;
+      const userRole = req.user?.role as "doctor" | "patient";
 
       if (!appointmentId) {
         return res.status(400).json({
           success: false,
-          message: 'Appointment ID is required'
+          message: "Appointment ID is required",
         });
       }
 
-      const videoCallUC = container.resolve(VideoCallUseCase);
-      const session = await videoCallUC.initiateCall(
+      const session = await this.videoCallUC.initiateCall(
         appointmentId,
         userId,
-        userRole as 'doctor' | 'patient'
+        userRole
       );
 
-      console.log(`✅ Video call initiated successfully - Room: ${session.roomId}`);
+      console.log(`Video call initiated → Room: ${session.roomId} by ${userRole} ${userId}`);
 
       return res.status(200).json({
         success: true,
-        message: 'Video call initiated successfully',
+        message: "Video call initiated successfully",
         data: {
           roomId: session.roomId,
           appointmentId: session.appointmentId,
           status: session.status,
-          doctorId: session.doctorId,
-          patientId: session.patientId,
-          initiatedBy: session.initiatedBy
-        }
+          initiatedBy: session.initiatedBy,
+        },
       });
     } catch (error: any) {
-      console.error('❌ Initiate call error:', error);
+      console.error("Initiate call failed:", error.message);
+
+      // Specific known errors
+      if (error.message.includes("not found")) {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      if (error.message.includes("Unauthorized")) {
+        return res.status(403).json({ success: false, message: error.message });
+      }
+      if (error.message.includes("confirmed")) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+
       return res.status(400).json({
         success: false,
-        message: error.message || 'Failed to initiate video call'
+        message: "Failed to initiate video call",
       });
     }
   }
@@ -60,48 +62,22 @@ export class VideoCallController {
   async joinCall(req: AuthRequest, res: Response): Promise<Response> {
     try {
       const { roomId } = req.params;
-      const userId = req.user?.userId;
-      const userRole = req.user?.role;
+      const userId = req.user?.userId!;
 
-      console.log(`🔵 Join call request - User: ${userId}, Role: ${userRole}, Room: ${roomId}`);
-
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Unauthorized - Missing user ID'
-        });
-      }
-
-      if (!roomId) {
+      if (!roomId?.startsWith("video-room-")) {
         return res.status(400).json({
           success: false,
-          message: 'Room ID is required'
+          message: "Invalid room ID format",
         });
       }
 
-      // Validate roomId format
-      if (!roomId.startsWith('room_')) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid room ID format'
-        });
-      }
+      const session = await this.videoCallUC.joinCall(roomId, userId);
 
-      const videoCallUC = container.resolve(VideoCallUseCase);
-      const session = await videoCallUC.joinCall(roomId, userId);
-
-      if (!session) {
-        return res.status(404).json({
-          success: false,
-          message: 'Video call session not found or expired'
-        });
-      }
-
-      console.log(`✅ User ${userId} joined call successfully - Room: ${roomId}, Status: ${session.status}`);
+      console.log(`User ${userId} joined room → ${roomId} (${session.status})`);
 
       return res.status(200).json({
         success: true,
-        message: 'Joined video call successfully',
+        message: "Joined video call successfully",
         data: {
           roomId: session.roomId,
           appointmentId: session.appointmentId,
@@ -111,32 +87,30 @@ export class VideoCallController {
           doctorName: session.doctorName,
           patientName: session.patientName,
           participants: [
-            { id: session.doctorId, name: session.doctorName, role: 'doctor' },
-            { id: session.patientId, name: session.patientName, role: 'patient' }
-          ]
-        }
+            { id: session.doctorId, name: session.doctorName, role: "doctor" },
+            { id: session.patientId, name: session.patientName, role: "patient" },
+          ],
+        },
       });
     } catch (error: any) {
-      console.error('❌ Join call error:', error);
-      
-      // Return specific error messages
-      if (error.message.includes('not found')) {
+      console.error("Join call failed:", error.message);
+
+      if (error.message.includes("not found") || error.message.includes("expired")) {
         return res.status(404).json({
           success: false,
-          message: 'Video call session not found or has expired'
+          message: "Video call session not found or has expired",
         });
       }
-      
-      if (error.message.includes('Unauthorized')) {
+      if (error.message.includes("Unauthorized")) {
         return res.status(403).json({
           success: false,
-          message: 'You are not authorized to join this video call'
+          message: "You are not allowed to join this call",
         });
       }
 
       return res.status(400).json({
         success: false,
-        message: error.message || 'Failed to join video call'
+        message: "Failed to join video call",
       });
     }
   }
@@ -144,54 +118,36 @@ export class VideoCallController {
   async endCall(req: AuthRequest, res: Response): Promise<Response> {
     try {
       const { roomId } = req.params;
-      const userId = req.user?.userId;
+      const userId = req.user?.userId!;
 
-      console.log(`🔵 End call request - User: ${userId}, Room: ${roomId}`);
+      const success = await this.videoCallUC.endCall(roomId, userId);
 
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Unauthorized'
-        });
-      }
-
-      if (!roomId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Room ID is required'
-        });
-      }
-
-      const videoCallUC = container.resolve(VideoCallUseCase);
-      const result = await videoCallUC.endCall(roomId, userId);
-
-      if (!result) {
+      if (!success) {
         return res.status(404).json({
           success: false,
-          message: 'Video call session not found'
+          message: "Video call session not found",
         });
       }
 
-      console.log(`✅ Call ended successfully by ${userId} - Room: ${roomId}`);
+      console.log(`Call ended by ${userId} → Room: ${roomId}`);
 
       return res.status(200).json({
         success: true,
-        message: 'Video call ended successfully',
-        data: { ended: result }
+        message: "Video call ended successfully",
       });
     } catch (error: any) {
-      console.error('❌ End call error:', error);
-      
-      if (error.message.includes('Unauthorized')) {
+      console.error("End call failed:", error.message);
+
+      if (error.message.includes("Unauthorized")) {
         return res.status(403).json({
           success: false,
-          message: 'You are not authorized to end this video call'
+          message: "You are not authorized to end this call",
         });
       }
 
       return res.status(400).json({
         success: false,
-        message: error.message || 'Failed to end video call'
+        message: "Failed to end video call",
       });
     }
   }
@@ -199,65 +155,81 @@ export class VideoCallController {
   async getCallStatus(req: AuthRequest, res: Response): Promise<Response> {
     try {
       const { roomId } = req.params;
-      const userId = req.user?.userId;
+      const userId = req.user?.userId!;
 
-      console.log(`🔵 Get call status - User: ${userId}, Room: ${roomId}`);
-
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          message: 'Unauthorized'
-        });
-      }
-
-      if (!roomId) {
-        return res.status(400).json({
-          success: false,
-          message: 'Room ID is required'
-        });
-      }
-
-      const videoCallUC = container.resolve(VideoCallUseCase);
-      const session = await videoCallUC.getActiveSession(roomId);
+      const session = await this.videoCallUC.getActiveSession(roomId);
 
       if (!session) {
         return res.status(404).json({
           success: false,
-          message: 'Video call session not found'
+          message: "Active video call not found",
         });
       }
 
-      // Verify user is part of this session
+      // Security: only participants can check status
       if (session.doctorId !== userId && session.patientId !== userId) {
         return res.status(403).json({
           success: false,
-          message: 'Unauthorized to access this video call'
+          message: "Unauthorized to access this call",
         });
       }
 
-      console.log(`✅ Call status retrieved - Room: ${roomId}, Status: ${session.status}`);
-
       return res.status(200).json({
         success: true,
-        message: 'Call status retrieved successfully',
         data: {
           roomId: session.roomId,
           appointmentId: session.appointmentId,
           status: session.status,
-          doctorId: session.doctorId,
-          patientId: session.patientId,
           doctorName: session.doctorName,
           patientName: session.patientName,
           startedAt: session.startedAt,
-          endedAt: session.endedAt
-        }
+          endedAt: session.endedAt,
+          durationSeconds: session.durationSeconds,
+        },
       });
-
     } catch (error: any) {
-      console.error('❌ Get call status error:', error);
+      console.error("Get call status error:", error);
       return res.status(500).json({
         success: false,
-        message: error.message || 'Failed to get call status'
+        message: "Internal server error",
+      });
+    }
+  }
+
+  // Optional: New endpoint — very useful for frontend
+  async getActiveCallForAppointment(req: AuthRequest, res: Response) {
+    try {
+      const { appointmentId } = req.params;
+      const userId = req.user?.userId!;
+
+      const session = await this.videoCallUC.getSessionByAppointment(appointmentId);
+
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: "No active call for this appointment",
+        });
+      }
+
+      if (session.doctorId !== userId && session.patientId !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: "Unauthorized",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          roomId: session.roomId,
+          status: session.status,
+          initiatedBy: session.initiatedBy,
+        },
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to check active call",
       });
     }
   }
