@@ -35,7 +35,7 @@ DoctorRouter.get(
   doctorAuthGuard,
   doctorAppointmentController.getAppointmentByid
 );
-DoctorRouter.use('/videocall', VideoCallRouter);
+DoctorRouter.use('/video', VideoCallRouter);
 DoctorRouter.use('/prescriptions', doctorAuthGuard,PrescriptionRouter);
 
 export default DoctorRouter

@@ -21,8 +21,6 @@ export class SocketServer {
     private io: Server;
     private redisService: RedisService; // Dependency Injection
 
-    // REDUNDANT LOCAL MAPS ARE REMOVED FOR SCALABILITY:
-    // connectedUsers, doctorSockets, patientSockets, activeVideoRooms, etc., are now handled by Redis or the adapter.
 
     constructor(httpServer: HttpServer) {
         // Resolve RedisService (Assuming tsyringe is used)
@@ -52,6 +50,23 @@ export class SocketServer {
         this.setupMiddleware();
         this.setupEventHandlers();
     }
+    public getSocketStats() {
+  const sockets = this.io.sockets.sockets;
+  const rooms = this.io.sockets.adapter.rooms;
+
+  return {
+    connectedClients: sockets.size,
+    totalRooms: rooms ? rooms.size : 0,
+    activeVideoRooms: Array.from(rooms?.keys() || []).filter(r => r.startsWith('video-room-')).length,
+    uptimeSeconds: Math.floor(process.uptime()),
+    memoryUsage: {
+      rss: `${Math.round(process.memoryUsage().rss / 1024 / 1024)} MB`,
+      heapUsed: `${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)} MB`,
+      heapTotal: `${Math.round(process.memoryUsage().heapTotal / 1024 / 1024)} MB`,
+    },
+    timestamp: new Date().toISOString(),
+  };
+}
 
     private setupMiddleware() {
         // Authentication Middleware remains the same, as it runs on connection establishment

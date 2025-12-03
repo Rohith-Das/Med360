@@ -5,7 +5,6 @@ import { VideoCallUseCase } from "../../../application/videoCall/VideoCallUC";
 import { AuthRequest } from "../../middlewares/AuthRequest";
 
 export class VideoCallController {
-  private videoCallUC = container.resolve(VideoCallUseCase); // ← Cache instance (safe in singleton scope)
 
   async initiateCall(req: AuthRequest, res: Response): Promise<Response> {
     try {
@@ -19,8 +18,9 @@ export class VideoCallController {
           message: "Appointment ID is required",
         });
       }
+      const videoCallUC = container.resolve(VideoCallUseCase);
 
-      const session = await this.videoCallUC.initiateCall(
+      const session = await videoCallUC.initiateCall(
         appointmentId,
         userId,
         userRole
@@ -70,8 +70,9 @@ export class VideoCallController {
           message: "Invalid room ID format",
         });
       }
+      const videoCallUC = container.resolve(VideoCallUseCase);
 
-      const session = await this.videoCallUC.joinCall(roomId, userId);
+      const session = await videoCallUC.joinCall(roomId, userId);
 
       console.log(`User ${userId} joined room → ${roomId} (${session.status})`);
 
@@ -119,8 +120,9 @@ export class VideoCallController {
     try {
       const { roomId } = req.params;
       const userId = req.user?.userId!;
+      const videoCallUC = container.resolve(VideoCallUseCase);
 
-      const success = await this.videoCallUC.endCall(roomId, userId);
+      const success = await videoCallUC.endCall(roomId, userId);
 
       if (!success) {
         return res.status(404).json({
@@ -156,8 +158,9 @@ export class VideoCallController {
     try {
       const { roomId } = req.params;
       const userId = req.user?.userId!;
+      const videoCallUC = container.resolve(VideoCallUseCase);
 
-      const session = await this.videoCallUC.getActiveSession(roomId);
+      const session = await videoCallUC.getActiveSession(roomId);
 
       if (!session) {
         return res.status(404).json({
@@ -201,8 +204,9 @@ export class VideoCallController {
     try {
       const { appointmentId } = req.params;
       const userId = req.user?.userId!;
+      const videoCallUC = container.resolve(VideoCallUseCase);
 
-      const session = await this.videoCallUC.getSessionByAppointment(appointmentId);
+      const session = await videoCallUC.getSessionByAppointment(appointmentId);
 
       if (!session) {
         return res.status(404).json({

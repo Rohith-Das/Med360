@@ -5,11 +5,10 @@ import { toast, ToastContainer } from "react-toastify";
 import DoctorNavbar from "@/components/doctor/DoctorNavbar";
 import { Video, VideoOff, Calendar, User, Clock, FileText, Eye, Edit } from "lucide-react";
 import { useSocket } from "@/components/providers/SocketProvider";
-import { useAppSelector } from "@/app/hooks";
 import { useNavigate } from "react-router-dom";
 import PrescriptionModal from "@/components/doctor/PrescriptionModal";
 import PrescriptionViewModal from "@/components/doctor/PrescriptionViewModal";
-
+import { useAppSelector,useAppDispatch } from "@/app/hooks";
 interface AppointmentData {
   _id: string;
   patientId: string;
@@ -39,7 +38,7 @@ const DoctorAppointments: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const { isConnected } = useSocket();
   const doctor = useAppSelector((state) => state.doctorAuth.doctorAuth.doctor);
-
+  const dispatch = useAppDispatch();
 
   // Prescription Modal State
   const [prescriptionModal, setPrescriptionModal] = useState<{
@@ -226,6 +225,8 @@ const handleSavePrescription = async (data: any) => {
     (apt) => filterStatus === "all" || apt.status === filterStatus
   );
 
+
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -317,6 +318,7 @@ const handleSavePrescription = async (data: any) => {
                         {/* Action Buttons */}
                         <div className="flex flex-col gap-3 min-w-[280px]">
                           {/* Video Call */}
+
                         
 
                           {/* Prescription Actions */}

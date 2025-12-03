@@ -116,8 +116,8 @@ function App() {
  <Route path="/doctor/appointments" element={<DoctorAppointments />} />
   <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
 
-<Route path="/video-call/:roomId" element={<VideoCallPage />} />
-     <Route
+<Route path="/doctor/video-call/:roomId" element={<VideoCallPage />} />
+<Route path="/patient/video-call/:roomId" element={<VideoCallPage />} />     <Route
         path="/chat"
         element={
           <ProtectedRoute>

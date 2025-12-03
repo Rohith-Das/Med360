@@ -6,8 +6,8 @@ import { toast, ToastContainer } from "react-toastify";
 import axiosInstance from "../../api/axiosInstance";
 import { Video, VideoOff, Clock, Calendar, User, FileText, Loader2 } from "lucide-react";
 import { useSocket } from "@/components/providers/SocketProvider";
-import { useAppSelector } from "@/app/hooks";
 import PatientPrescriptionView from "@/components/patient/PatientViewPrescriptionModal";
+import { useAppSelector,useAppDispatch } from "@/app/hooks";
 
 interface AppointmentData {
   _id: string;
@@ -54,6 +54,7 @@ const ViewAppointment: React.FC = () => {
   const { isConnected } = useSocket();
   const patient = useAppSelector((state) => state.patientAuth.auth.patient);
 
+  const dispatch = useAppDispatch();
 
   // Prescription state
   const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionData | null>(null);
@@ -197,7 +198,6 @@ const ViewAppointment: React.FC = () => {
   const filteredAppointments = appointments.filter(
     (appointment) => filterStatus === "all" || appointment.status === filterStatus
   );
-
 
 
   const CancelDialog: React.FC<{ appointmentId: string }> = ({ appointmentId }) => (

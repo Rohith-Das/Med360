@@ -1,4 +1,5 @@
 // client/src/pages/patientPages/PatientNotificationsPage.tsx
+
 import React, { useEffect, useState } from 'react';
 import { FaBell, FaCalendarCheck, FaCalendarTimes, FaEye, FaArrowLeft, FaVideo } from 'react-icons/fa';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
@@ -9,21 +10,16 @@ import { useSocket } from '@/components/providers/SocketProvider';
 import axiosInstance from '@/api/axiosInstance';
 import { toast } from 'react-toastify';
 
-
-
 const PatientNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  
-  // Get data from Redux - incomingCallsData is now a plain object
+
   const { notifications, loading, error, unreadCount } = useAppSelector((state) => state.notifications);
   const { patient } = useAppSelector((state) => state.patientAuth.auth);
-  
+
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  
-
 
   useEffect(() => {
     dispatch(fetchNotifications({ 
@@ -34,17 +30,13 @@ const PatientNotificationsPage: React.FC = () => {
     }));
   }, [dispatch, currentPage, filter]);
 
-
-
-
   const handleMarkAsRead = async (notificationId: string) => {
     try {
       await dispatch(markNotificationAsRead({ notificationId, role: "patient" }));
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }
-  }
-
+  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -73,7 +65,6 @@ const PatientNotificationsPage: React.FC = () => {
     const { data } = notification;
     if (!data) return null;
 
-
     return (
       <div className="mt-2 text-sm text-gray-600">
         {data.appointmentDate && (
@@ -91,11 +82,9 @@ const PatientNotificationsPage: React.FC = () => {
         {data.cancelReason && (
           <p><strong>Cancel Reason:</strong> {data.cancelReason}</p>
         )}
-      
       </div>
     );
   };
-
 
   if (loading && notifications.length === 0) {
     return (
@@ -125,7 +114,6 @@ const PatientNotificationsPage: React.FC = () => {
                 <p className="text-gray-600 mt-2">
                   {unreadCount > 0 ? `You have ${unreadCount} unread notifications` : 'All caught up!'}
                 </p>
-             
               </div>
               <div className="flex items-center space-x-4">
                 <div className="flex bg-white rounded-lg shadow-sm border">
@@ -156,49 +144,50 @@ const PatientNotificationsPage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              notifications.map((notification) => {
+              notifications.map((notification) => (
+                <div key={notification.id} className={`bg-white rounded-lg shadow-sm border transition-all hover:shadow-md ${!notification.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50' : ''}`}>
+                  <div className="p-6">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start space-x-4 flex-1">
+                        <div className="flex-shrink-0 mt-1">
+                          {getNotificationIcon(notification.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-medium text-gray-900">
+                              {notification.title}
+                            </h3>
+                            {!notification.isRead && (
+                              <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
+                                New
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-700 mt-1">{notification.message}</p>
+                          {getNotificationDetails(notification)}
+                          <p className="text-sm text-gray-500 mt-3">{formatDate(notification.createdAt)}</p>
+                        </div>
+                      </div>
 
-                return (
-                  <div key={notification.id} className={`bg-white rounded-lg shadow-sm border transition-all hover:shadow-md ${!notification.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50' : ''}`}>
-                    <div className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4 flex-1">
-                          <div className="flex-shrink-0 mt-1">
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-lg font-medium text-gray-900">
-                                {notification.title}
-                              </h3>
-                              {!notification.isRead && (
-                                <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                                  New
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-gray-700 mt-1">{notification.message}</p>
-                            {getNotificationDetails(notification)}
-                            <p className="text-sm text-gray-500 mt-3">{formatDate(notification.createdAt)}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                       
-                          {!notification.isRead && (
-                            <button
-                              onClick={() => handleMarkAsRead(notification.id)}
-                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Mark as read"
-                            >
-                              <FaEye className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
+                      <div className="flex flex-col items-end space-y-3">
+                        {/* JOIN VIDEO CALL BUTTON */}
+
+
+                        {/* MARK AS READ */}
+                        {!notification.isRead && (
+                          <button
+                            onClick={() => handleMarkAsRead(notification.id)}
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Mark as read"
+                          >
+                            <FaEye className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
-                );
-              })
+                </div>
+              ))
             )}
           </div>
 

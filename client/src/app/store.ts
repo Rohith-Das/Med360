@@ -62,12 +62,14 @@ const rootReducer=combineReducers({
   adminDoctors: adminDoctorsReducer,
   notifications: notificationReducer,
   chat: chatReducer,
+
   
 })
 const rootPersistConfig = {
   key: 'appRoot', 
   storage,
   whitelist: ['specialization', 'doctors', 'adminDoctors', 'notifications', 'chat'], // Only global, non-auth slices
+  blacklist: ['videoCall', 'patientAuth', 'doctorAuth', 'adminAuth'],
   // blacklist: ['patientAuth', 'doctorAuth', 'adminAuth'], // The nested reducers handle persistence for auth
 };
 const persistedRootReducer = persistReducer(rootPersistConfig, rootReducer);

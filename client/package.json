@@ -21,6 +21,7 @@
     "@types/date-fns": "^2.6.3",
     "@types/gsap": "^3.0.0",
     "@types/react-calendar": "^4.1.0",
+    "@zegocloud/zego-uikit-prebuilt": "^2.17.1",
     "axios": "^1.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

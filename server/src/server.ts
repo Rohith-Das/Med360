@@ -63,7 +63,7 @@ export const startServer = async () => {
  app.use("/api/doctor", DoctorRouter);
 app.use('/api/schedules', ScheduleRouter);
 app.use("/api/payment", PaymentRouter);
-app.use('/api/videocall', VideoCallRouter);
+app.use('/api/video', VideoCallRouter);
 app.use('/api/chat', ChatRouter);
 app.use('/api/prescriptions', PrescriptionRouter);
 

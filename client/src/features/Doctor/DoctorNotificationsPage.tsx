@@ -1,48 +1,46 @@
 // client/src/features/Doctor/DoctorNotificationsPage.tsx
+
 import React, { useEffect, useState } from 'react';
 import { FaBell, FaCalendarCheck, FaCalendarTimes, FaEye, FaArrowLeft, FaVideo } from 'react-icons/fa';
-import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { fetchNotifications, markNotificationAsRead, Notification } from '../../features/notification/notificationSlice';
+import { useAppDispatch, useAppSelector } from '@/app/hooks';
+import { fetchNotifications, markNotificationAsRead, Notification } from '@/features/notification/notificationSlice';
 import { useNavigate } from 'react-router-dom';
 import DoctorNavbar from '@/components/doctor/DoctorNavbar';
 import { useSocket } from '@/components/providers/SocketProvider';
-import doctorAxiosInstance from '@/api/doctorAxiosInstance';
 import { toast } from 'react-toastify';
-import { socketService } from '../notification/socket';
 
 
 const DoctorNotificationsPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+
   const { notifications, loading, error, unreadCount } = useAppSelector((state) => state.notifications);
   const { isConnected } = useSocket();
-  const { doctor } = useAppSelector((state) => state.doctorAuth.doctorAuth);
+
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-
-  
   const itemsPerPage = 10;
 
-
-  // Fetch notifications on mount and filter change
+  // Fetch notifications
   useEffect(() => {
-    dispatch(fetchNotifications({ 
-      limit: itemsPerPage, 
-      offset: (currentPage - 1) * itemsPerPage,
-      unreadOnly: filter === 'unread',
-      role: 'doctor'
-    }));
+    dispatch(
+      fetchNotifications({
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
+        unreadOnly: filter === 'unread',
+        role: 'doctor',
+      })
+    );
   }, [dispatch, currentPage, filter]);
 
-
+  // Mark as read
   const handleMarkAsRead = async (notificationId: string) => {
     try {
-      await dispatch(markNotificationAsRead({ notificationId, role: "doctor" }));
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
+      await dispatch(markNotificationAsRead({ notificationId, role: 'doctor' }));
+    } catch (err) {
+      console.error('Failed to mark as read:', err);
     }
   };
-
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -63,7 +61,7 @@ const DoctorNotificationsPage: React.FC = () => {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -71,9 +69,8 @@ const DoctorNotificationsPage: React.FC = () => {
     const { data } = notification;
     if (!data) return null;
 
-
     return (
-      <div className="mt-2 text-sm text-gray-600">
+      <div className="mt-2 text-sm text-gray-600 space-y-1">
         {data.appointmentDate && (
           <p><strong>Date:</strong> {new Date(data.appointmentDate).toLocaleDateString()}</p>
         )}
@@ -84,17 +81,14 @@ const DoctorNotificationsPage: React.FC = () => {
           <p><strong>Fee:</strong> ₹{data.consultingFee}</p>
         )}
         {data.refundAmount && (
-          <p><strong>Refund Amount:</strong> ₹{data.refundAmount}</p>
+          <p><strong>Refund:</strong> ₹{data.refundAmount}</p>
         )}
         {data.cancelReason && (
-          <p><strong>Cancel Reason:</strong> {data.cancelReason}</p>
+          <p><strong>Reason:</strong> {data.cancelReason}</p>
         )}
-     
       </div>
     );
   };
-
-  // REMOVED: Conditional VideoCall rendering since we're using routes
 
   if (loading && notifications.length === 0) {
     return (
@@ -110,162 +104,155 @@ const DoctorNotificationsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <DoctorNavbar />
-      
-      <div className="pt-20 pb-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <div className="pt-20 pb-12">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
             <button
               onClick={() => navigate(-1)}
-              className="mb-4 flex items-center text-blue-600 hover:text-blue-700 transition-colors"
+              className="mb-6 flex items-center text-blue-600 hover:text-blue-700 font-medium"
             >
-              <FaArrowLeft className="mr-2" />
-              Back
+              <FaArrowLeft className="mr-2" /> Back
             </button>
-            
-            <div className="flex items-center justify-between">
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
                 <p className="text-gray-600 mt-2">
-                  {unreadCount > 0 ? `You have ${unreadCount} unread notifications` : 'All caught up!'}
+                  {unreadCount > 0
+                    ? `You have ${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}`
+                    : 'You are all caught up!'}
                 </p>
-             
                 {!isConnected && (
-                  <div className="mt-2 p-3 bg-yellow-50 border-l-4 border-yellow-500 rounded">
-                    <p className="text-yellow-800 text-sm font-medium">
-                      ⚠️ Real-time notifications disconnected. Refresh to reconnect.
-                    </p>
-                  </div>
+                  <p className="mt-3 text-sm text-amber-700 bg-amber-50 px-4 py-2 rounded-lg inline-block">
+                    Real-time updates offline — refresh to reconnect
+                  </p>
                 )}
               </div>
-              
-              <div className="flex items-center space-x-4">
-                <div className="flex bg-white rounded-lg shadow-sm border">
-                  <button
-                    onClick={() => setFilter('all')}
-                    className={`px-4 py-2 text-sm font-medium rounded-l-lg transition-colors ${
-                      filter === 'all'
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    All
-                  </button>
-                  <button
-                    onClick={() => setFilter('unread')}
-                    className={`px-4 py-2 text-sm font-medium rounded-r-lg transition-colors ${
-                      filter === 'unread'
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    Unread ({unreadCount})
-                  </button>
-                </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setFilter('all')}
+                  className={`px-5 py-2.5 rounded-lg font-medium transition-all ${
+                    filter === 'all'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 border hover:bg-gray-50'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setFilter('unread')}
+                  className={`px-5 py-2.5 rounded-lg font-medium transition-all relative ${
+                    filter === 'unread'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-white text-gray-700 border hover:bg-gray-50'
+                  }`}
+                >
+                  Unread
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
           </div>
 
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-700">{error}</p>
             </div>
           )}
 
+          {/* Notifications List */}
           <div className="space-y-4">
             {notifications.length === 0 ? (
-              <div className="text-center py-12">
-                <FaBell className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications</h3>
-                <p className="text-gray-600">
-                  {filter === 'unread' 
-                    ? "You don't have any unread notifications." 
-                    : "You don't have any notifications yet."
-                  }
+              <div className="text-center py-16 bg-white rounded-xl shadow-sm">
+                <FaBell className="mx-auto h-16 w-16 text-gray-300 mb-4" />
+                <h3 className="text-xl font-semibold text-gray-800">No notifications</h3>
+                <p className="text-gray-500 mt-2">
+                  {filter === 'unread' ? "You're all caught up!" : "No notifications yet."}
                 </p>
               </div>
             ) : (
-              notifications.map((notification) => {
-    
+              notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`bg-white rounded-xl shadow-sm border-2 transition-all hover:shadow-lg ${
+                    !notification.isRead
+                      ? 'border-l-8 border-l-blue-500 bg-blue-50/50'
+                      : 'border-transparent'
+                  }`}
+                >
+                  <div className="p-6">
+                    <div className="flex items-start justify-between gap-6">
+                      {/* Left: Icon + Content */}
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="mt-1">
+                          {getNotificationIcon(notification.type)}
+                        </div>
 
-                return (
-                  <div
-                    key={notification.id}
-                    className={`bg-white rounded-lg shadow-sm border transition-all hover:shadow-md ${
-                      !notification.isRead ? 'border-l-4 border-l-blue-500 bg-blue-50' : ''
-                    }`}
-                  >
-                    <div className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4 flex-1">
-                          <div className="flex-shrink-0 mt-1">
-                            {getNotificationIcon(notification.type)}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-1">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                              {notification.title}
+                            </h3>
+                            {!notification.isRead && (
+                              <span className="bg-blue-600 text-white text-xs px-3 py-1 rounded-full font-bold">
+                                NEW
+                              </span>
+                            )}
                           </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-lg font-medium text-gray-900">
-                                {notification.title}
-                              </h3>
-                              {!notification.isRead && (
-                                <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-medium">
-                                  New
-                                </span>
-                              )}
-                            </div>
-                            
-                            <p className="text-gray-700 mt-1">
-                              {notification.message}
-                            </p>
-                            
-                            {getNotificationDetails(notification)}
-                            
-                            <p className="text-sm text-gray-500 mt-3">
-                              {formatDate(notification.createdAt)}
-                            </p>
-                          </div>
+
+                          <p className="text-gray-700">{notification.message}</p>
+                          {getNotificationDetails(notification)}
+                          <p className="text-sm text-gray-500 mt-4">
+                            {formatDate(notification.createdAt)}
+                          </p>
                         </div>
-                        
-                        <div className="flex items-center space-x-2 ml-4">
-                        
-                          {!notification.isRead && (
-                            <button
-                              onClick={() => handleMarkAsRead(notification.id)}
-                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Mark as read"
-                            >
-                              <FaEye className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex flex-col items-end gap-3">
+
+                        {!notification.isRead && (
+                          <button
+                            onClick={() => handleMarkAsRead(notification.id)}
+                            className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Mark as read"
+                          >
+                            <FaEye className="w-5 h-5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
-                );
-              })
+                </div>
+              ))
             )}
           </div>
 
           {/* Pagination */}
           {notifications.length > 0 && (
-            <div className="mt-8 flex justify-center">
-              <div className="flex items-center space-x-2">
+            <div className="mt-10 flex justify-center">
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-white border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
                 >
                   Previous
                 </button>
-                
-                <span className="px-3 py-2 text-sm font-medium text-gray-700">
+                <span className="px-4 py-2.5 font-medium text-gray-700">
                   Page {currentPage}
                 </span>
-                
                 <button
-                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  onClick={() => setCurrentPage(p => p + 1)}
                   disabled={notifications.length < itemsPerPage}
-                  className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-white border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
                 >
                   Next
                 </button>
