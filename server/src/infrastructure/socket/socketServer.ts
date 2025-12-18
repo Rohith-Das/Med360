@@ -13,13 +13,13 @@ import { NotificationService } from "../../application/notification/Notification
 // Define the augmented socket type for authenticated users
 interface AuthenticatedSocket extends Socket {
     userId?: string;
-    userRole?: 'doctor' | 'patient' | 'admin';
+    userRole?: 'doctor' | 'patient' 
     userName?: string;
 }
 
 export class SocketServer {
     private io: Server;
-    private redisService: RedisService; // Dependency Injection
+    private redisService: RedisService; 
 
 
     constructor(httpServer: HttpServer) {
@@ -37,11 +37,6 @@ export class SocketServer {
             pingTimeout: 5000 
         });
 
-        // ------------------------------------------------
-        // CORE SCALABILITY: Setup Redis Adapter
-        // All server instances will connect to the same Redis instance
-        // for inter-server communication and room/socket state sharing.
-        // ------------------------------------------------
         const pubClient = redis.duplicate();
         const subClient = redis.duplicate();
         this.io.adapter(createAdapter(pubClient, subClient));
@@ -82,11 +77,14 @@ export class SocketServer {
 
                 try {
                     payload = authService.verifyAccessToken(token);
+                    socket.userRole = 'patient';
                 } catch {
                     try {
                         payload = authService.verifyDoctorAccessToken(token);
+                        socket.userRole = 'doctor';
                     } catch {
-                        payload = authService.verifyAdminAccessToken(token);
+                  console.error('Socket auth failed: Invalid token for patient or doctor');
+            return next(new Error('Invalid authentication token'));
                     }
                 }
 
@@ -108,7 +106,6 @@ export class SocketServer {
             console.log(`User connected: ${socket.userName} (${socket.userRole}) - Socket: ${socket.id}`);
 
             if (socket.userId) {
-                // 1. SCALABLE STATE MANAGEMENT: Store userId -> socketId mapping in Redis
                 await this.redisService.setSocketIdForUser(socket.userId, socket.id);
 
                 // 2. Join dedicated rooms (Role and User ID for targeted messaging)
@@ -195,9 +192,6 @@ export class SocketServer {
             }
         });
 
-        // WebRTC signaling - offer, answer, ice-candidate
-        // These handlers remain largely the same, relying on io.to() which is now scalable
-        
         socket.on('video:offer', (data: { roomId: string; offer: any; targetSocketId?: string }) => {
             const { offer, targetSocketId, roomId } = data;
             

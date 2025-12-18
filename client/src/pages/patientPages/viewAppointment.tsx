@@ -9,6 +9,8 @@ import { useSocket } from "@/components/providers/SocketProvider";
 import PatientPrescriptionView from "@/components/patient/PatientViewPrescriptionModal";
 import { useAppSelector,useAppDispatch } from "@/app/hooks";
 
+
+
 interface AppointmentData {
   _id: string;
   doctorId: string;
@@ -61,6 +63,7 @@ const ViewAppointment: React.FC = () => {
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   const [loadingPrescriptions, setLoadingPrescriptions] = useState<{ [key: string]: boolean }>({});
   const [prescriptionCache, setPrescriptionCache] = useState<{ [key: string]: PrescriptionData | null }>({});
+const [isCalling, setIsCalling] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     fetchAppointments();
@@ -79,6 +82,20 @@ const ViewAppointment: React.FC = () => {
       setLoading(false);
     }
   };
+
+const handleStartCall = async (appointmentId: string) => {
+  setIsCalling(prev => ({ ...prev, [appointmentId]: true }));
+  try {
+    const res = await axiosInstance.post('/video-call/initiate', { appointmentId });
+    const { roomId } = res.data.data;
+    navigate(`/video-call/${roomId}`);
+  } catch (err: any) {
+    toast.error(err.response?.data?.message || 'Failed to start call');
+  } finally {
+    setIsCalling(prev => ({ ...prev, [appointmentId]: false }));
+  }
+};
+
 
   const fetchPrescription = async (appointmentId: string) => {
     // Check cache first
@@ -194,6 +211,8 @@ const ViewAppointment: React.FC = () => {
       setCancellingId(null);
     }
   };
+
+
 
   const filteredAppointments = appointments.filter(
     (appointment) => filterStatus === "all" || appointment.status === filterStatus
@@ -349,7 +368,18 @@ const ViewAppointment: React.FC = () => {
                          
                         </div>
                       </div>
+                      {(appointment.status === "confirmed") && (
+  <button
+    onClick={() => handleStartCall(appointment._id)}
+    disabled={isCalling[appointment._id]}
+    className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+  >
+    <Video className="w-5 h-5" />
+    {isCalling[appointment._id] ? 'Starting...' : 'Start Video Call'}
+  </button>
+)}
                       <div className="mt-4 md:mt-0 md:ml-6 flex flex-col space-y-3">
+                 
                         {/* Prescription Button */}
                         <button
                           onClick={() => fetchPrescription(appointment._id)}
@@ -381,6 +411,9 @@ const ViewAppointment: React.FC = () => {
                             Refund Processed: ₹{appointment.consultationFee}
                           </div>
                         )}
+                        
+
+
                         {canCancel && (
                           <button
                             onClick={() => setShowCancelDialog(appointment._id)}
@@ -400,6 +433,7 @@ const ViewAppointment: React.FC = () => {
             </div>
           )}
         </div>
+        
       </div>
 
       {/* Prescription Modal */}

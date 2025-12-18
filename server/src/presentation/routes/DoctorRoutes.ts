@@ -5,7 +5,6 @@ import { getDoctorProfileController } from '../controllers/doctorsControllers/Do
 import { doctorAuthGuard } from '../middlewares/DoctorAuthGuard'
 import { NotificationController } from '../controllers/notification/NotificationController'
 import { DoctorAppointmentController } from '../controllers/Appointment/DoctorAppointmentController'
-import VideoCallRouter from './VideoCallRoutes'
 import PrescriptionRouter from './PrescriptionRoutes'
 
 const DoctorRouter=express.Router()
@@ -35,7 +34,7 @@ DoctorRouter.get(
   doctorAuthGuard,
   doctorAppointmentController.getAppointmentByid
 );
-DoctorRouter.use('/video', VideoCallRouter);
+
 DoctorRouter.use('/prescriptions', doctorAuthGuard,PrescriptionRouter);
 
 export default DoctorRouter

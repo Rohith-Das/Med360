@@ -81,7 +81,6 @@ import { GetNotificationsUC } from "../../application/notification/GetNotificati
 import { AIService } from "../../application/service/AIService";
 import { GeminiService } from "../services/GeminiService";
 import { ChatBotUC } from "../../application/ai/chatbotUseCase";
-import { VideoCallUseCase } from "../../application/videoCall/VideoCallUC";
 import { GetDoctorAppointmentUC } from "../../application/Appointment/GetDoctorsAppointmentUC";
 import { MongoDashboardRepo } from "../database/repositores/MongoDashboardRepo";
 import { IDashboardRepository } from "../../domain/repositories/DashboardRepository";
@@ -101,7 +100,12 @@ import { CreatePrescriptionUC } from "../../application/prescriptionUC/CreatePre
 import { GetPrescriptionByAppointmentUC } from "../../application/prescriptionUC/GetPrescriptionByAppointmentUC";
 import { SoftDeletePrescriptionUC } from "../../application/prescriptionUC/SoftDeletePrescriptionUC";
 import { UpdatePrescriptionUC } from "../../application/prescriptionUC/UpdatePrescriptionUC";
+import { IVideoCallRepository } from "../../domain/repositories/VideoCallRepository";
+import { MongoVideoCallRepo } from "../database/repositores/MongoVideoCallRepo";  
 
+import { CreateVideoCallSessionUC } from "../../application/videocallUC/CreateVideoCallSessionUC";
+import { JoinVideoCallUC } from "../../application/videocallUC/JoinVideoCallUC";
+import { EndVideoCallUC } from "../../application/videocallUC/EndVideoCallUC";
 
 // Database
 container.registerSingleton(mongoDBClient);
@@ -123,6 +127,10 @@ container.register<INotificationRepository>('INotificationRepository', MongoNoti
 container.register<IPrescriptionRepository>('IPrescriptionRepository', {
   useClass: MongoPrescriptionRepo
 });
+container.register<IVideoCallRepository>(
+  "IVideoCallRepository",
+  { useClass: MongoVideoCallRepo }
+);
 
 // Services5
 container.registerSingleton(EmailService);
@@ -220,5 +228,9 @@ container.registerSingleton(CreatePrescriptionUC)
 container.registerSingleton(GetPrescriptionByAppointmentUC)
 container.registerSingleton(SoftDeletePrescriptionUC)
 container.registerSingleton(UpdatePrescriptionUC)
+
+container.registerSingleton(CreateVideoCallSessionUC);
+container.registerSingleton(JoinVideoCallUC);
+container.registerSingleton(EndVideoCallUC);
 
 export {container}

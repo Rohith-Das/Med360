@@ -3,12 +3,12 @@ import React, { useEffect, useState } from "react";
 import doctorAxiosInstance from "../../api/doctorAxiosInstance";
 import { toast, ToastContainer } from "react-toastify";
 import DoctorNavbar from "@/components/doctor/DoctorNavbar";
-import { Video, VideoOff, Calendar, User, Clock, FileText, Eye, Edit } from "lucide-react";
-import { useSocket } from "@/components/providers/SocketProvider";
+import { Video, Calendar, User, Clock, FileText, Eye, Edit, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PrescriptionModal from "@/components/doctor/PrescriptionModal";
 import PrescriptionViewModal from "@/components/doctor/PrescriptionViewModal";
-import { useAppSelector,useAppDispatch } from "@/app/hooks";
+import { useAppSelector } from "@/app/hooks";
+
 interface AppointmentData {
   _id: string;
   patientId: string;
@@ -18,6 +18,7 @@ interface AppointmentData {
   status: string;
   consultationFee: number;
   patient?: {
+    _id: string; // Ensure _id is available
     name: string;
     email: string;
     phone: string;
@@ -36,11 +37,9 @@ const DoctorAppointments: React.FC = () => {
   const [appointments, setAppointments] = useState<AppointmentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const { isConnected } = useSocket();
   const doctor = useAppSelector((state) => state.doctorAuth.doctorAuth.doctor);
-  const dispatch = useAppDispatch();
+  const [isCalling, setIsCalling] = useState<{ [key: string]: boolean }>({});
 
-  // Prescription Modal State
   const [prescriptionModal, setPrescriptionModal] = useState<{
     isOpen: boolean;
     appointmentId: string;
@@ -52,26 +51,20 @@ const DoctorAppointments: React.FC = () => {
     patientName: "",
   });
 
-  // Track fetched prescriptions per appointment
   const [prescriptionStates, setPrescriptionStates] = useState<{ [key: string]: any }>({});
   const [loadingPrescriptions, setLoadingPrescriptions] = useState<{ [key: string]: boolean }>({});
 
-  // View Modal
   const [prescriptionViewModal, setPrescriptionViewModal] = useState<PrescriptionViewState>({
-    isOpen:
-
- false,
+    isOpen: false,
     prescription: null,
     appointmentId: "",
     patientName: "",
   });
 
-  // Fetch all appointments
   useEffect(() => {
     fetchAppointments();
   }, []);
 
-  // Auto-fetch prescriptions for confirmed/completed appointments
   useEffect(() => {
     appointments.forEach((apt) => {
       if ((apt.status === "confirmed" || apt.status === "completed") && !prescriptionStates[apt._id]) {
@@ -79,7 +72,6 @@ const DoctorAppointments: React.FC = () => {
       }
     });
   }, [appointments]);
-
 
   const fetchAppointments = async () => {
     try {
@@ -91,6 +83,7 @@ const DoctorAppointments: React.FC = () => {
       setLoading(false);
     }
   };
+
 
   const fetchPrescriptionForAppointment = async (appointmentId: string) => {
     if (prescriptionStates[appointmentId]) return;
@@ -165,48 +158,60 @@ const DoctorAppointments: React.FC = () => {
       toast.error(error.response?.data?.message || "Failed to delete");
     }
   };
-const handleSavePrescription = async (data: any) => {
+
+  const handleStartCall = async (appointmentId: string) => {
+  setIsCalling(prev => ({ ...prev, [appointmentId]: true }));
   try {
-    let response;
-
-    if (prescriptionModal.existingPrescription) {
-      // EDIT MODE: Use PUT with prescription ID
-      const prescriptionId = prescriptionModal.existingPrescription._id;
-      response = await doctorAxiosInstance.put(`/doctor/prescriptions/${prescriptionId}`, data);
-    } else {
-      // CREATE MODE: Use POST
-      response = await doctorAxiosInstance.post("/doctor/prescriptions", {
-        appointmentId: prescriptionModal.appointmentId,
-        ...data,
-      });
-    }
-
-    if (response.data.success) {
-      toast.success(
-        prescriptionModal.existingPrescription
-          ? "Prescription updated successfully"
-          : "Prescription saved successfully"
-      );
-
-      // Close modal
-      setPrescriptionModal({ isOpen: false, appointmentId: "", patientName: "" });
-
-      // Update local state
-      setPrescriptionStates((prev) => ({
-        ...prev,
-        [prescriptionModal.appointmentId]: response.data.data,
-      }));
-    }
-  } catch (error: any) {
-    console.error("Save prescription error:", error);
-    toast.error(
-      error.response?.data?.message || 
-      (prescriptionModal.existingPrescription 
-        ? "Failed to update prescription" 
-        : "Failed to save prescription")
-    );
+    const res = await doctorAxiosInstance.post('/video-call/initiate', { appointmentId });
+    const { roomId } = res.data.data;
+    navigate(`/video-call/${roomId}`);
+  } catch (err: any) {
+    toast.error(err.response?.data?.message || 'Failed to start call');
+  } finally {
+    setIsCalling(prev => ({ ...prev, [appointmentId]: false }));
   }
 };
+
+  const handleSavePrescription = async (data: any) => {
+    try {
+      let response;
+
+      if (prescriptionModal.existingPrescription) {
+        const prescriptionId = prescriptionModal.existingPrescription._id;
+        response = await doctorAxiosInstance.put(`/doctor/prescriptions/${prescriptionId}`, data);
+      } else {
+        response = await doctorAxiosInstance.post("/doctor/prescriptions", {
+          appointmentId: prescriptionModal.appointmentId,
+          ...data,
+        });
+      }
+
+      if (response.data.success) {
+        toast.success(
+          prescriptionModal.existingPrescription
+            ? "Prescription updated successfully"
+            : "Prescription saved successfully"
+        );
+
+        setPrescriptionModal({ isOpen: false, appointmentId: "", patientName: "" });
+
+        setPrescriptionStates((prev) => ({
+          ...prev,
+          [prescriptionModal.appointmentId]: response.data.data,
+        }));
+      }
+    } catch (error: any) {
+      console.error("Save prescription error:", error);
+      toast.error(
+        error.response?.data?.message || 
+        (prescriptionModal.existingPrescription 
+          ? "Failed to update prescription" 
+          : "Failed to save prescription")
+      );
+    }
+  };
+
+
 
   const formatDate = (date: string) => new Date(date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const formatTime = (time: string) => time.slice(0, 5);
@@ -224,8 +229,6 @@ const handleSavePrescription = async (data: any) => {
   const filteredAppointments = appointments.filter(
     (apt) => filterStatus === "all" || apt.status === filterStatus
   );
-
-
 
   if (loading) {
     return (
@@ -275,14 +278,11 @@ const handleSavePrescription = async (data: any) => {
               {filteredAppointments.map((appointment) => {
                 const hasPrescription = !!prescriptionStates[appointment._id];
                 const isLoadingPrescription = loadingPrescriptions[appointment._id];
-              
 
                 return (
-                  <div
-                  >
+                  <div key={appointment._id} className="bg-white rounded-lg shadow-sm border">
                     <div className="p-6">
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
-                        {/* Patient Info */}
                         <div className="flex-1">
                           <div className="flex items-center gap-4">
                             <User className="w-12 h-12 text-gray-400" />
@@ -312,16 +312,22 @@ const handleSavePrescription = async (data: any) => {
                               Fee: ₹{appointment.consultationFee}
                             </div>
                           </div>
-
                         </div>
 
-                        {/* Action Buttons */}
                         <div className="flex flex-col gap-3 min-w-[280px]">
-                          {/* Video Call */}
+{/* Add this button next to prescription buttons */}
+{(appointment.status === "confirmed") && (
+  <button
+    onClick={() => handleStartCall(appointment._id)}
+    disabled={isCalling[appointment._id]}
+    className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+  >
+    <Video className="w-5 h-5" />
+    {isCalling[appointment._id] ? 'Starting...' : 'Start Video Call'}
+  </button>
+)}
+                         
 
-                        
-
-                          {/* Prescription Actions */}
                           <div className="flex flex-col gap-2 mt-2">
                             {isLoadingPrescription ? (
                               <button className="w-full py-3 bg-gray-200 rounded-lg animate-pulse text-gray-600 text-sm">
@@ -364,7 +370,6 @@ const handleSavePrescription = async (data: any) => {
           )}
         </div>
 
-        {/* Modals */}
         <PrescriptionModal
           isOpen={prescriptionModal.isOpen}
           onClose={() => setPrescriptionModal({ isOpen: false, appointmentId: "", patientName: "" })}

@@ -190,29 +190,71 @@ const notificationSlice = createSlice({
         state.error = null;
       })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
-        state.loading = false;
-        state.notifications = action.payload.notifications || [];
-        state.unreadCount = action.payload.unreadCount || 0;
+  state.loading = false;
 
-        // Extract and store video call data from fetched notifications
-        action.payload.notifications?.forEach((notification: Notification) => {
-          if (notification.type === 'video_call_initiated' && 
-              notification.data?.roomId && 
-              notification.data?.appointmentId) {
-            const callData: VideoCallData = {
-              roomId: notification.data.roomId,
-              appointmentId: notification.data.appointmentId,
-              initiatorName: notification.data.initiatorName,
-              initiatorRole: notification.data.initiatorRole,
-              appointmentTime: notification.data.appointmentTime,
-              appointmentDate: notification.data.appointmentDate,
-              callType: notification.data.callType,
-              status: notification.data.status
-            };
-            state.incomingCallsData[callData.appointmentId] = callData;
-          }
-        });
-      })
+  // ✅ API RETURNS ARRAY
+  const notifications = Array.isArray(action.payload)
+    ? action.payload
+    : action.payload.notifications || [];
+
+  // ✅ DO NOT WIPE EXISTING DATA — MERGE
+  const existingIds = new Set(state.notifications.map(n => n.id));
+const newOnes = notifications.filter(
+  (n: Notification) => !existingIds.has(n.id)
+);
+
+  state.notifications.push(...newOnes);
+
+  // ✅ SAFE UNREAD COUNT
+ state.unreadCount = notifications.filter(
+  (n: Notification) => !n.isRead
+).length;
+
+  // ✅ STORE VIDEO CALL DATA SAFELY
+  newOnes.forEach((notification: Notification) => {
+    if (
+      notification.type === 'video_call_initiated' &&
+      notification.data?.roomId &&
+      notification.data?.appointmentId
+    ) {
+      state.incomingCallsData[notification.data.appointmentId] = {
+        roomId: notification.data.roomId,
+        appointmentId: notification.data.appointmentId,
+        initiatorName: notification.data.initiatorName,
+        initiatorRole: notification.data.initiatorRole,
+        appointmentTime: notification.data.appointmentTime,
+        appointmentDate: notification.data.appointmentDate,
+        callType: notification.data.callType,
+        status: notification.data.status,
+      };
+    }
+  });
+})
+
+      // .addCase(fetchNotifications.fulfilled, (state, action) => {
+      //   state.loading = false;
+      //   state.notifications = action.payload.notifications || [];
+      //   state.unreadCount = action.payload.unreadCount || 0;
+
+      //   // Extract and store video call data from fetched notifications
+      //   action.payload.notifications?.forEach((notification: Notification) => {
+      //     if (notification.type === 'video_call_initiated' && 
+      //         notification.data?.roomId && 
+      //         notification.data?.appointmentId) {
+      //       const callData: VideoCallData = {
+      //         roomId: notification.data.roomId,
+      //         appointmentId: notification.data.appointmentId,
+      //         initiatorName: notification.data.initiatorName,
+      //         initiatorRole: notification.data.initiatorRole,
+      //         appointmentTime: notification.data.appointmentTime,
+      //         appointmentDate: notification.data.appointmentDate,
+      //         callType: notification.data.callType,
+      //         status: notification.data.status
+      //       };
+      //       state.incomingCallsData[callData.appointmentId] = callData;
+      //     }
+      //   });
+      // })
       .addCase(fetchNotifications.rejected, (state, action) => {
         state.loading = false;
         state.error = action.error.message || 'Failed to fetch notifications';

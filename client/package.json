@@ -50,7 +50,8 @@
     "tailwind-variants": "^1.0.0",
     "tailwindcss-animate": "^1.0.7",
     "use-debounce": "^10.0.6",
-    "webrtc-adapter": "^9.0.3"
+    "webrtc-adapter": "^9.0.3",
+    "zego-express-engine-webrtc": "^3.11.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

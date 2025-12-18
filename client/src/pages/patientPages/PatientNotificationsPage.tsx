@@ -1,13 +1,10 @@
 // client/src/pages/patientPages/PatientNotificationsPage.tsx
-
 import React, { useEffect, useState } from 'react';
 import { FaBell, FaCalendarCheck, FaCalendarTimes, FaEye, FaArrowLeft, FaVideo } from 'react-icons/fa';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { fetchNotifications, markNotificationAsRead, Notification } from '../../features/notification/notificationSlice';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/patient/Navbar';
-import { useSocket } from '@/components/providers/SocketProvider';
-import axiosInstance from '@/api/axiosInstance';
 import { toast } from 'react-toastify';
 
 const PatientNotificationsPage: React.FC = () => {
@@ -15,11 +12,13 @@ const PatientNotificationsPage: React.FC = () => {
   const dispatch = useAppDispatch();
 
   const { notifications, loading, error, unreadCount } = useAppSelector((state) => state.notifications);
-  const { patient } = useAppSelector((state) => state.patientAuth.auth);
-
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 100;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   useEffect(() => {
     dispatch(fetchNotifications({ 
@@ -37,6 +36,7 @@ const PatientNotificationsPage: React.FC = () => {
       console.error('Error marking notification as read:', error);
     }
   };
+
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -102,7 +102,6 @@ const PatientNotificationsPage: React.FC = () => {
       <Navbar />
       <div className="pt-20 pb-8">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
           <div className="mb-8">
             <button onClick={() => navigate(-1)} className="mb-4 flex items-center text-blue-600 hover:text-blue-700 transition-colors">
               <FaArrowLeft className="mr-2" />
@@ -170,9 +169,8 @@ const PatientNotificationsPage: React.FC = () => {
                       </div>
 
                       <div className="flex flex-col items-end space-y-3">
-                        {/* JOIN VIDEO CALL BUTTON */}
-
-
+                        {/* JOIN VIDEO CALL */}
+                        
                         {/* MARK AS READ */}
                         {!notification.isRead && (
                           <button

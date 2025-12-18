@@ -36,9 +36,7 @@ class SocketService {
         userType: role
       },
       reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: 1000,
-      timeout: 20000
+
     });
 
     this.setupEventHandlers(role, userId);
@@ -192,6 +190,39 @@ class SocketService {
     this.socket.on('error', (error) => {
       console.error('❌ Socket error:', error);
     });
+    // Add these event handlers in the setupEventHandlers method:
+
+// Video room events
+this.socket.on('video:participant-joined', (data) => {
+  console.log('👤 Participant joined:', data);
+  toast.info(`${data.userName} joined the call`, {
+    position: "top-right",
+    autoClose: 3000,
+  });
+});
+
+this.socket.on('video:participant-left', (data) => {
+  console.log('👤 Participant left:', data);
+  toast.info(`${data.userName} left the call`, {
+    position: "top-right",
+    autoClose: 3000,
+  });
+});
+
+this.socket.on('video:offer', (data) => {
+  console.log('📨 Received WebRTC offer:', data);
+  // Handle WebRTC offer if using peer-to-peer
+});
+
+this.socket.on('video:answer', (data) => {
+  console.log('📨 Received WebRTC answer:', data);
+  // Handle WebRTC answer if using peer-to-peer
+});
+
+this.socket.on('video:ice-candidate', (data) => {
+  console.log('❄️ Received ICE candidate:', data);
+  // Handle ICE candidate if using peer-to-peer
+});
   }
 
   disconnect() {

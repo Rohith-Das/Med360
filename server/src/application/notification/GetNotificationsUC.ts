@@ -16,7 +16,7 @@ export class GetNotificationsUC {
     unreadCount: number;
   }> {
     try {
-      const { limit = 50, offset = 0, unreadOnly = false } = options || {};
+      const { limit = 100, offset = 0, unreadOnly = false } = options || {};
 
       let notifications: Notification[];
       

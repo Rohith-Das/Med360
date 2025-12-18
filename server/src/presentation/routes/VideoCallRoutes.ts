@@ -1,23 +1,13 @@
-// src/presentation/routes/VideoCallRoutes.ts
-import express from 'express';
+
+import { Router } from 'express';
 import { VideoCallController } from '../controllers/videoCall/VideoCallController';
-import { authGuard } from '../middlewares/AuthMiddleware';
-import { doctorAuthGuard } from '../middlewares/DoctorAuthGuard';
+import { videoCallAuthGuard } from '../middlewares/videoCallAuthGuard';
 
-const VideoCallRouter = express.Router();
-const videoCallController = new VideoCallController();
-console.log('✅ VideoCallRoutes loaded');
-// Patient routes
-VideoCallRouter.post('/initiate', authGuard, videoCallController.initiateCall);
-VideoCallRouter.post('/join/:roomId', authGuard, videoCallController.joinCall);
-VideoCallRouter.post('/end/:roomId', authGuard, videoCallController.endCall);
-VideoCallRouter.get('/status/:roomId', authGuard, videoCallController.getCallStatus);
+const VideoRouter = Router();
+const controller = new VideoCallController();
 
-// Doctor routes (using same endpoints but with doctor auth)
-VideoCallRouter.post('/doctor/initiate', doctorAuthGuard, videoCallController.initiateCall);
-VideoCallRouter.post('/doctor/join/:roomId', doctorAuthGuard, videoCallController.joinCall);
-VideoCallRouter.post('/doctor/end/:roomId', doctorAuthGuard, videoCallController.endCall);
-VideoCallRouter.get('/doctor/status/:roomId', doctorAuthGuard, videoCallController.getCallStatus);
+VideoRouter.post('/initiate', videoCallAuthGuard, controller.initiate.bind(controller));
+VideoRouter.post('/join/:roomId', videoCallAuthGuard, controller.join.bind(controller));
+VideoRouter.post('/end/:roomId', videoCallAuthGuard, controller.end.bind(controller));
 
-export default VideoCallRouter;
-
+export default VideoRouter;

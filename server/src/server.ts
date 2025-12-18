@@ -15,11 +15,11 @@ import AppRouter from "./presentation/routes/ApplicationRoutes";
 import DoctorRouter from "./presentation/routes/DoctorRoutes";
 import ScheduleRouter from "./presentation/routes/ScheduleRoutes";
 import PaymentRouter from "./presentation/routes/PaymentRoutes";
-import VideoCallRouter from "./presentation/routes/VideoCallRoutes";
 import { initializeSocketServer } from "./infrastructure/socket/socketServer";
 import { ChatSocketServer } from "./infrastructure/socket/chatSocketServer";
 import { ChatRouter } from "./presentation/routes/chatRoutes";
 import PrescriptionRouter from "./presentation/routes/PrescriptionRoutes";
+import VideoRouter from "./presentation/routes/VideoCallRoutes";
 
 
 let chatSocketServerInstance: ChatSocketServer;
@@ -63,9 +63,10 @@ export const startServer = async () => {
  app.use("/api/doctor", DoctorRouter);
 app.use('/api/schedules', ScheduleRouter);
 app.use("/api/payment", PaymentRouter);
-app.use('/api/video', VideoCallRouter);
 app.use('/api/chat', ChatRouter);
 app.use('/api/prescriptions', PrescriptionRouter);
+app.use('/api/video-call', VideoRouter);
+
 
 
 app.get('/api/socket-status',(req,res)=>{

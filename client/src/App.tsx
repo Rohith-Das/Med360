@@ -27,15 +27,14 @@ import PaymentPage from "./pages/patientPages/PaymentPage";
 import PaymentSuccessPage from "./pages/patientPages/PaymentSuccessPage";
 import ViewAppointment from "./pages/patientPages/viewAppointment";
 import WalletPage from "./pages/patientPages/WalletPage";
-import DoctorNotificationsPage from "./features/Doctor/DoctorNotificationsPage";
+import DoctorNotificationsPage from "./pages/doctorPages/DoctorNotificationsPage";
 import DoctorAppointments from "./pages/doctorPages/DoctorAppointmentList";
 import PatientNotificationsPage from "./pages/patientPages/PatientNotificationsPage";
 import { useAppSelector } from "./app/hooks";
 import AdminDashboardPage from "./pages/adminPages/AdminDashboardPage";
-import VideoCallPage from "./pages/VideoCallPage";
+import VideoCall from "./pages/videocall/VideoCall";
 import PatientChatPage from "./pages/chatPages/PatientChatPage";
 import DoctorChatPage from "./pages/chatPages/DoctorChatPage";
-
 
 function App() {
 
@@ -115,9 +114,9 @@ function App() {
   <Route path="/notifications" element={<PatientNotificationsPage/>}/> 
  <Route path="/doctor/appointments" element={<DoctorAppointments />} />
   <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-
-<Route path="/doctor/video-call/:roomId" element={<VideoCallPage />} />
-<Route path="/patient/video-call/:roomId" element={<VideoCallPage />} />     <Route
+    
+ 
+    <Route
         path="/chat"
         element={
           <ProtectedRoute>
@@ -132,6 +131,9 @@ function App() {
             <DoctorChatPage />
         }
       />
+      
+<Route path="/video-call/:roomId" element={<VideoCall />} />
+
     </Routes>
   );
 }
