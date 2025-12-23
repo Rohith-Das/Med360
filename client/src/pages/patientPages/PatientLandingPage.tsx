@@ -1,14 +1,17 @@
 
 import styles from '../../App.module.scss'
-import Navbar from '../../components/patient/Navbar'
-import SideBar from '../../components/patient/SideBar'
-import HomeBanner from '../../components/patient/HomeBanner'
 import React, { useState, useEffect } from 'react';
 import doctorBanner from '/images/ThreeDoc-Banner-carausel3_1.webp';
 import BannerImage2 from '/images/Single-docarausel_1.webp';
 import bannerImage3 from '/images/phone_f.webp';
 import { FaChevronCircleLeft, FaChevronCircleRight } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import NavbarFirstPage from '@/components/patient/FirstpageComponents/NavbarFirstPage';
+import DemmyDoctors from '@/components/patient/FirstpageComponents/DemmyDoctors';
+import BookingSteps from '@/components/patient/BookingSteps';
+import MedicalProtocols from '@/components/patient/FirstpageComponents/MedicalProtocols';
+import Footer from '@/components/patient/FirstpageComponents/Footer';
+
 
 
 const banners = [
@@ -40,7 +43,7 @@ const banners = [
 
 
 
-function Home() {
+function LandingPage() {
   const navigate=useNavigate()
 
     const [currentSlider, setCurrentSlider] = useState(0);
@@ -80,13 +83,14 @@ function Home() {
  <>
 
  <div className="flex flex-col min-h-screen">
-  <Navbar />
+  <NavbarFirstPage />
+
   {/* <div className="flex flex-1">
     <SideBar />
     
   </div> */}
   <div>
-     <div className="relative w-full overflow-hidden">
+     <div className="relative w-full overflow-hidden mt-6">
           <div
             className="flex transition-transform duration-500 ease-in-out"
             style={{ transform: `translateX(-${currentSlider * 100}%)` }}
@@ -102,7 +106,7 @@ function Home() {
                   </h1>
                   <button
                     onClick={() => navigate('/login')}
-                    className={`${banner.buttonColor} text-white font-semibold px-5 py-2 rounded transition-colors`}
+                    className={`${banner.buttonColor} text-white font-semibold px-5 py-2 rounded transition-colors mt-8`}
                   >
                     {banner.buttonText}
                   </button>
@@ -147,6 +151,19 @@ function Home() {
           </div>
         </div>
   </div>
+  <div  className='mt-6'>
+      <BookingSteps/>
+  </div>
+ <div className='mt-6'>
+     <DemmyDoctors />
+ </div>
+ <div  className='mt-6'>
+      <MedicalProtocols/>
+ </div>
+  <div  className='mt-6'>
+      <Footer/>
+ </div>
+
 </div>
 
  </>   
@@ -154,4 +171,4 @@ function Home() {
   )
 }
 
-export default Home
+export default LandingPage

@@ -1,5 +1,4 @@
 import { Routes, Route } from "react-router-dom";
-import FirstPage from "./pages/patientPages/FirstPage";
 import { ProtectedRoute } from "./components/patient/ProtectedRoute";
 import { LoginPage } from "./pages/patientPages/LoginPage";
 import Dashboard from "./pages/patientPages/Home";
@@ -30,18 +29,19 @@ import WalletPage from "./pages/patientPages/WalletPage";
 import DoctorNotificationsPage from "./pages/doctorPages/DoctorNotificationsPage";
 import DoctorAppointments from "./pages/doctorPages/DoctorAppointmentList";
 import PatientNotificationsPage from "./pages/patientPages/PatientNotificationsPage";
-import { useAppSelector } from "./app/hooks";
 import AdminDashboardPage from "./pages/adminPages/AdminDashboardPage";
 import VideoCall from "./pages/videocall/VideoCall";
 import PatientChatPage from "./pages/chatPages/PatientChatPage";
 import DoctorChatPage from "./pages/chatPages/DoctorChatPage";
+import LandingPage from "./pages/patientPages/PatientLandingPage";
+
 
 function App() {
 
 
   return (
     <Routes>
-      <Route path="/" element={<FirstPage />} />
+      <Route path="/" element={<LandingPage />} />
       <Route
         path="/login"
         element={
@@ -77,7 +77,6 @@ function App() {
  
       <Route path="/verify-otp" element={<VerifyOtpPage />} />
       <Route path="/admin/login" element={<AdminLoginPage />} />
-      <Route path="/admin/home" element={<Home />} />
       <Route
         path="/request-password-reset-otp"
         element={<RequestPasswordResetPage />}

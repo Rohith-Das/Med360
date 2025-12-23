@@ -59,6 +59,15 @@ class SocketService {
 
     this.socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
+
+      if (error.message === 'Invalid authentication token' || error.message === 'Authentication token required') {
+        console.warn('Authentication failed - Disconnecting socket to prevent loop');
+        this.socket?.disconnect();
+        this.socket = null;
+        toast.error('Session expired. Please login again.');
+        return; // Stop further reconnect attempts
+      }
+
       this.reconnectAttempts++;
       
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {

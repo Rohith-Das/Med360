@@ -6,6 +6,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Navbar from '@/components/patient/Navbar';
 import { useNavigate } from 'react-router-dom';
+import Footer from '@/components/patient/FirstpageComponents/Footer';
 
 interface FilterState {
   search: string;
@@ -564,7 +565,7 @@ const DoctorsBySpecialization: React.FC = () => {
           </>
         )}
 
-{isBookingModalOpen && selectedDoctor && (
+        {isBookingModalOpen && selectedDoctor && (
   <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
     <div className="bg-white rounded-xl p-6 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
       <div className="flex justify-between items-center mb-4">
@@ -712,8 +713,10 @@ const DoctorsBySpecialization: React.FC = () => {
       )}
     </div>
   </div>
+
 )}
       </div>
+      <div className='mt-8'><Footer /></div>
       
       <ToastContainer />
     </div>

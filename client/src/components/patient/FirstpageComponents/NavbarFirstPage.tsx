@@ -1,85 +1,116 @@
-import React from 'react'
-import { Stethoscope, Menu, X, User, HeartPulse, Phone, Info, Home } from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { useState } from "react";
+import { Menu, X,Stethoscope } from "lucide-react";
+import { GiHamburgerMenu } from 'react-icons/gi';
+const NavbarFirstPage = () => {
+  const [open, setOpen] = useState(false);
 
-function NavbarFirstPage() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
 
   return (
-    <nav className="bg-[#05523d] text-white shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20"> {/* Increased height */}
-          {/* Logo and Brand */}
-          <div className="flex items-center space-x-3">
-            <div className="bg-white p-2 rounded-lg">
-              <Stethoscope className="h-6 w-6 text-[#064E3B]" />
-            </div>
-            <span className="text-2xl font-bold text-white">Med360</span>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
-            <a href="#" className="flex items-center text-white hover:text-gray-200 transition-colors">
-              <Home className="mr-1 h-4 w-4" /> Home
-            </a>
-            <a href="#" className="flex items-center text-white hover:text-gray-200 transition-colors">
-              <HeartPulse className="mr-1 h-4 w-4" /> Services
-            </a>
-            <a href="#" className="flex items-center text-white hover:text-gray-200 transition-colors">
-              <User className="mr-1 h-4 w-4" /> Doctors
-            </a>
-            <a href="#" className="flex items-center text-white hover:text-gray-200 transition-colors">
-              <Info className="mr-1 h-4 w-4" /> About
-            </a>
-            <a href="#" className="flex items-center text-white hover:text-gray-200 transition-colors">
-              <Phone className="mr-1 h-4 w-4" /> Contact
-            </a>
-            <button className="bg-white hover:bg-gray-100 text-[#064E3B] px-6 py-2 rounded-md font-semibold transition-colors flex items-center">
-              Sign In
-            </button>
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-white hover:text-gray-200 p-2"
-            >
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
+   
+    <nav className="w-full h-20 px-6 flex items-center justify-between border-b bg-white 
+                  fixed top-0 left-0 right-0 z-50">
+      {/* Left */}
+      <div className="flex items-center gap-6">
+        {/* Logo */}
+         <Stethoscope className="h-6 w-6 text-[#064E3B]" />
+        <div className="flex items-center gap-2 font-bold text-lg">
+         <a href="/">Med360</a>
         </div>
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden border-t border-gray-300/20">
-            <div className="px-2 pt-2 pb-4 space-y-2">
-              <a href="#" className="flex items-center px-3 py-3 text-white hover:bg-[#0a6b52] rounded-md transition-colors">
-                <Home className="mr-2 h-5 w-5" /> Home
-              </a>
-              <a href="#" className="flex items-center px-3 py-3 text-white hover:bg-[#0a6b52] rounded-md transition-colors">
-                <HeartPulse className="mr-2 h-5 w-5" /> Services
-              </a>
-              <a href="#" className="flex items-center px-3 py-3 text-white hover:bg-[#0a6b52] rounded-md transition-colors">
-                <User className="mr-2 h-5 w-5" /> Doctors
-              </a>
-              <a href="#" className="flex items-center px-3 py-3 text-white hover:bg-[#0a6b52] rounded-md transition-colors">
-                <Info className="mr-2 h-5 w-5" /> About
-              </a>
-              <a href="#" className="flex items-center px-3 py-3 text-white hover:bg-[#0a6b52] rounded-md transition-colors">
-                <Phone className="mr-2 h-5 w-5" /> Contact
-              </a>
-              <div className="px-3 pt-2">
-                <button className="w-full bg-white hover:bg-gray-100 text-[#064E3B] px-4 py-3 rounded-md font-semibold transition-colors flex justify-center items-center">
-                  Sign In
-                </button>
-              </div>
+        {/* Desktop Tabs */}
+      
+<div className="hidden md:flex bg-gray-100 rounded-full p-1 gap-x-2">
+  <NavLink
+    to="/login"
+    end                                 // ← Add this!
+    className={({ isActive }: { isActive: boolean }) =>
+      `px-4 py-2 rounded-full text-sm transition-all duration-200
+       ${
+         isActive
+           ? "bg-white text-black shadow"
+           : "text-gray-600 hover:bg-white hover:text-black hover:shadow"
+       }`
+    }
+  >
+    Solutions
+  </NavLink>
+  <NavLink
+    to="/login"
+    className={({ isActive }: { isActive: boolean }) =>
+      `px-4 py-2 rounded-full text-sm transition-all duration-200
+       ${
+         isActive
+           ? "bg-white text-black shadow"
+           : "text-gray-600 hover:bg-white hover:text-black hover:shadow"
+       }`
+    }
+  >
+    Build
+  </NavLink>
+  <NavLink
+    to="/login"
+    className={({ isActive }: { isActive: boolean }) =>
+      `px-4 py-2 rounded-full text-sm transition-all duration-200
+       ${
+         isActive
+           ? "bg-white text-black shadow"
+           : "text-gray-600 hover:bg-white hover:text-black hover:shadow"
+       }`
+    }
+  >
+    Ecosystem
+  </NavLink>
+</div>
+      </div>
+
+      {/* Right Buttons (Desktop) */}
+      <div className="hidden md:flex gap-3">
+        <button className="bg-black text-white px-4 py-2 rounded-full text-sm flex items-center gap-1">
+          Launch App ↗
+        </button>
+        <button className="bg-black text-white px-4 py-2 rounded-full text-sm flex items-center gap-1">
+          Start Building ↗
+        </button>
+      </div>
+
+      {/* Mobile Menu Button */}
+      <button
+        className="md:hidden"
+        onClick={() => setOpen(!open)}
+      >
+        {open ? <X size={24} /> : <Menu size={24} />}
+      </button>
+
+      {/* Mobile Menu */}
+      {open && (
+        <div className="absolute top-18 left-0 w-full bg-white border-b md:hidden">
+          <div className="flex flex-col p-4 gap-3">
+            <NavLink onClick={() => setOpen(false)} to="/login" className="py-2">
+              Solutions
+            </NavLink>
+            <NavLink onClick={() => setOpen(false)} to="/login" className="py-2">
+              Build
+            </NavLink>
+            <NavLink onClick={() => setOpen(false)} to="/login" className="py-2">
+              Ecosystem
+            </NavLink>
+
+            <div className="flex flex-col gap-2 pt-4">
+              <button className="bg-black text-white py-2 rounded-full">
+               <a href="/login">
+                Launch App ↗</a>
+              </button>
+              <button className="bg-black text-white py-2 rounded-full">
+                Start Building ↗
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </nav>
   );
-}
+};
 
 export default NavbarFirstPage;

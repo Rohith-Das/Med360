@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: .
+    container_name: med360-server-container
+    ports:
+      - "5001:5001"
+    env_file: .env
+    # This ensures the container stays up and restarts if it crashes
+    restart: always
+    # Connects to your host's network for Redis/Mongo if they aren't in docker
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  default:
+    name: med360-network

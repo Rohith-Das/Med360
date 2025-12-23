@@ -4,4 +4,7 @@ dist/
 .env
 .env.local
 .env.*.local
+echo tsconfig.tsbuildinfo >> client/.gitignore
+git rm --cached client/tsconfig.tsbuildinfo
+
 

@@ -1,0 +1,21 @@
+services:
+  backend:
+    build: 
+      context: ./server
+    container_name: med360-backend
+    ports:
+      - "5001:5001"
+    env_file: ./server/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  frontend:
+    build: 
+      context: ./client
+    container_name: med360-frontend
+    ports:
+      - "3000:80"
+    # IMPORTANT: Passing env vars to the builder
+    env_file: ./client/.env
+    depends_on:
+      - backend

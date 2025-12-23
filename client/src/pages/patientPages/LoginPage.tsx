@@ -6,6 +6,8 @@ import Navbar from "../../components/patient/Navbar";
 import { FaUser, FaLock, FaArrowRight, FaEye, FaEyeSlash } from "react-icons/fa";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import Footer from "@/components/patient/FirstpageComponents/Footer";
+
 
 export const LoginPage = () => {
   const dispatch = useDispatch<any>();
@@ -91,8 +93,10 @@ export const LoginPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+   
       <Navbar />
       <ToastContainer />
+
       
       <div className="flex flex-col items-center justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-md bg-white rounded-lg shadow-md overflow-hidden">
@@ -228,6 +232,9 @@ export const LoginPage = () => {
             </p>
           </div>
         </div>
+      </div>
+      <div className="mt-8">
+    <Footer/>
       </div>
     </div>
   );

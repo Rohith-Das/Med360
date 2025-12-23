@@ -1,12 +1,14 @@
 import React from 'react'
 import styles from '../../App.module.scss'
 import Navbar from '../../components/patient/Navbar'
-import SideBar from '../../components/patient/SideBar'
 import HomeBanner from '../../components/patient/HomeBanner'
 import SpecializationCard from '@/components/patient/specializations/SpecializationCard'
 import DoctorsCards from '@/components/patient/DoctorsCards'
 import BookingSteps from '@/components/patient/BookingSteps'
 import Chatbot from '@/components/patient/Chatbot'
+import MedicalProtocols from '@/components/patient/FirstpageComponents/MedicalProtocols'
+import Footer from '@/components/patient/FirstpageComponents/Footer'
+
 
 
 function Home() {
@@ -20,10 +22,15 @@ function Home() {
     
   </div> */}
   <div>
+     
     <HomeBanner/>
     <BookingSteps/>
     <SpecializationCard/>
     <DoctorsCards/>
+    <MedicalProtocols/>
+      <div className="mt-8">
+        <Footer/>
+          </div>
      <Chatbot
         position="bottom-right"
         initialMessage="Welcome to our medical portal! How can I assist you today?"
