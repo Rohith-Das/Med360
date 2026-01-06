@@ -1,5 +1,14 @@
+# Ignore node_modules and build output
 node_modules
 dist
 build
+
+# Ignore git folder
 .git
+
+# Ignore all .env files EXCEPT .env.production
 .env
+!.env.production
+
+# Optional: also allow .env.example if you have one
+# !.env.example
